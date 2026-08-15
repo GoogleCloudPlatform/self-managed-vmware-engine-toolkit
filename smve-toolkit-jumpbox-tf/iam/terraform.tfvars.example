@@ -1,0 +1,27 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ==============================================================================
+# File: iam/terraform.tfvars.example
+# Description: Example variable values for the Standalone IAM module.
+# ==============================================================================
+
+project_id       = "my-gcp-project-id"
+terraform_runner = "user:admin@example.com" # or "serviceAccount:tf-runner@my-project.iam.gserviceaccount.com"
+
+# Jumpbox SSH User identity
+jumpbox_ssh_user = "user:ssh-operator@example.com" # or "serviceAccount:jumpbox-ssh-user@my-project.iam.gserviceaccount.com"
+
+# Jumpbox Script Runner Identity (executes Python scripts on the jumpbox)
+jumpbox_script_runner = "user:operator@example.com"
