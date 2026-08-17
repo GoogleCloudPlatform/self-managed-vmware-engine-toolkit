@@ -1,0 +1,54 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ==============================================================================
+# File: infrastructure/terraform.tfvars.example
+# Description: Example variable values file for main infrastructure deployment.
+# ==============================================================================
+
+# Required Parameters
+project_id = "my-gcp-project-id"
+region     = "us-central1"
+
+
+# Network Parameters
+# Scenario A: Create a NEW Subnet (default)
+create_subnet = true
+vpc_name      = "my-custom-vpc"
+subnet_name   = "smve-toolkit-subnet"
+subnet_cidr   = "10.10.0.0/28" # Min /29 CIDR required when creating new subnet
+
+# Scenario B: Use an EXISTING Subnet
+# If NAT & internet egress already exist on the network, set `enable_internet = false`.
+# create_subnet = false
+# vpc_name      = "my-existing-vpc" # Optional when create_subnet = false
+# subnet_name   = "existing-esxi-connected-subnet"
+# subnet_cidr   = "" # Not required when using existing subnet
+
+# Cloud Router, Cloud NAT & Default Internet Route Egress Control
+# Set enable_internet = true (default) to create NAT, Router, and default internet route for package downloads.
+# Set enable_internet = false for 1: post-setup to tear down NAT, Router, and default route to lock down egress and 2: Internet access already exists for given VPC/subnet.
+enable_internet = true
+
+# Jumpbox Settings
+jumpbox_name          = "smve-toolkit-jumpbox"  # Optional: defaults to "smve-toolkit-jumpbox"
+machine_type          = "e2-micro"              # Optional: defaults to "e2-micro"
+boot_disk_size        = 30                      # Optional: size in GB (defaults to 30, min 10 GB)
+boot_disk_type        = "pd-balanced"           # Optional: defaults to "pd-balanced" (options: "pd-standard", "pd-balanced", "pd-ssd", "pd-extreme")
+boot_disk_image       = "debian-cloud/debian-12" # Optional: OS boot image (defaults to "debian-cloud/debian-12")
+jumpbox_internal_ip   = ""                      # Optional: static IPv4 (e.g. "10.10.0.5") or reserved IP name (e.g. "my-reserved-ip"). Defaults to "" for dynamic/ephemeral IP.
+service_account_email = ""                      # Optional: custom SA email (e.g. "my-custom-sa@my-project.iam.gserviceaccount.com"). Defaults to "" for default Compute Engine SA.
+
+# RECOMMENDATION: Set `zone` to the exact GCP zone where your ESXi instances reside
+zone = "us-central1-a" # Optional: defaults to "<region>-a"
