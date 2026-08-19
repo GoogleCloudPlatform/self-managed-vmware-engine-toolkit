@@ -1,0 +1,11 @@
+# Mandatory dependencies for automated VCF Installer deployment suite.
+# Intended for installation directly on customer GCP Jumpboxes via pip.
+# All packages listed are generic open-source PyPI distributions.
+pyvmomi>=8.0.2.0.1
+google-cloud-compute>=1.15.0
+google-cloud-secret-manager>=2.16.0
+google-cloud-storage>=2.14.0
+paramiko>=3.4.0
+netmiko>=4.3.0
+requests>=2.31.0
+urllib3>=2.0.7

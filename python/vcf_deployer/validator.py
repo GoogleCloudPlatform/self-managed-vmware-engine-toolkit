@@ -1,0 +1,401 @@
+"""Phase 1: Pre-Deployment Validation & Extraction module.
+
+Performs operational inspections, external system state validation, secret
+verification, image-based OVA discovery, and unified VLAN/CIDR routing
+deduction utilizing stateless utility helpers and generic infrastructure
+clients. Produces an immutable ValidationContext.
+"""
+
+import concurrent.futures
+import ipaddress
+import logging
+import re
+import secrets
+import ssl
+from typing import Dict, Optional, Tuple
+import urllib.request
+
+from clients import gcp_client as gcp_client_mod
+import constants
+import models
+from utils import network_utils
+from utils import string_utils
+
+logger = logging.getLogger(constants.DeployerDefaults.LOGGER_NAME)
+
+
+class PreDeploymentValidator:
+  """Executes Phase 1 pre-deployment verification gates and deduction."""
+
+  def __init__(
+      self,
+      config: models.DeployerConfig,
+      gcp: gcp_client_mod.GCPClient,
+  ) -> None:
+    """Initializes validator with target config document and GCP SDK client.
+
+    Args:
+        config: Parsed master configuration document from config.json.
+        gcp: Initialized GCPClient wrapper.
+    """
+    self.config = config
+    self.gcp = gcp
+
+  def validate_and_extract(self) -> models.ValidationContext:
+    """Master execution routine for Phase 1 pre-deployment validation.
+
+    Performs a single inspection call per GCE instance during initial checks,
+    extracts and audits Secret Manager passwords via string utilities,
+    governs instance tags, infers VCF OVA download paths from boot disk images,
+    and performs unified VLAN/CIDR routing deduction via network utilities.
+
+    Returns:
+        A frozen models.ValidationContext populated with verified variables.
+
+    Raises:
+        models.ValidationError: On non-conformance or config validation failure.
+    """
+    logger.info("Initiating Phase 1: Pre-Deployment Validation & Extraction...")
+
+    # 1. Single-pass inspection of GCE instances during initial check
+    esxi_details_map = self._validate_gce_instances()
+
+    # 2. Extract and audit required secret payloads from Secret Manager
+    root_pass, vcf_root, vcf_local = self._extract_and_audit_secrets()
+
+    # 3. Govern mandatory compute instance tags utilizing cached properties
+    self._govern_gce_instance_tags(esxi_details_map)
+
+    # If optional VCF deployment profile is missing, skip VCF-specific checks
+    vcf_cfg = self.config.vcf_deployment_config
+    if not vcf_cfg:
+      logger.info("No vcf_deployment_config provided; skipping VCF checks.")
+      return models.ValidationContext(
+          esxi_instances=esxi_details_map,
+          new_esxi_root_password=root_pass,
+      )
+
+    # 4. Target ESXi host lookup from cache and VCF OVA URL inference
+    target_full_path = self.config.get_full_instance_path(
+        vcf_cfg.target_gce_instance
+    )
+    clean_target_path = string_utils.clean_gcp_uri(target_full_path)
+    target_details = esxi_details_map.get(clean_target_path)
+    if not target_details:
+      raise models.ValidationError(
+          f"Designated target_gce_instance '{vcf_cfg.target_gce_instance}' not"
+          " found in gce_instances or missing valid internal IP."
+      )
+
+    ova_url = self._derive_vcf_ova_url(target_details)
+
+    # 5. Dynamic IP source resolution (forwarding rule or reserved address)
+    if not vcf_cfg.vcf_installer_ip_source:
+      raise models.ValidationError(
+          "VCF deployment configuration missing required"
+          " 'vcf_installer_ip_source'!"
+      )
+    vcf_ip = self.gcp.resolve_ip_source(
+        vcf_cfg.vcf_installer_ip_source,
+        default_project=self.config.project,
+        default_region=self.config.region,
+    )
+    logger.info("Resolved VCF installer IP address: %s", vcf_ip)
+
+    # 6. Unified extraction of VLAN ID, CIDR range, Gateway, and Netmask
+    vlan_id, cidr, netmask, gateway = (
+        network_utils.extract_vlan_cidr_and_routing(
+            vcf_ip, target_details, self.gcp
+        )
+    )
+
+    # 6. FQDN deconstruction into VM Name, Domain, and Searchpath
+    vm_name, domain, searchpath = string_utils.deconstruct_fqdn(
+        vcf_cfg.vcf_installer_fqdn
+    )
+
+    # 7. Port Group standardization with unique random suffix
+    rand_suffix = secrets.token_hex(2)
+    port_group = f"vlan-{vlan_id}-{rand_suffix}"
+
+    # 8. Offline Depot SSL Thumbprint capture via HTTPS testing connection
+    thumbprint = network_utils.capture_ssl_thumbprint(ova_url)
+
+    logger.info(
+        "Phase 1 validation completed successfully (VLAN: %d, CIDR: %s).",
+        vlan_id,
+        cidr,
+    )
+    return models.ValidationContext(
+        esxi_instances=esxi_details_map,
+        new_esxi_root_password=root_pass,
+        target_esxi_ip=target_details.primary_ip,
+        vcf_installer_ip=vcf_ip,
+        vcf_installer_ova_url=ova_url,
+        vlan_id=vlan_id,
+        port_group_name=port_group,
+        sddc_manager_netmask=netmask,
+        sddc_manager_gateway=gateway,
+        vcf_vm_name=vm_name,
+        vcf_domain=domain,
+        vcf_searchpath=searchpath,
+        ssl_thumbprint=thumbprint,
+        vcf_appliance_root_password=vcf_root,
+        vcf_appliance_local_password=vcf_local,
+    )
+
+  def _inspect_single_instance(
+      self, inst_input: str
+  ) -> Tuple[str, models.GCEInstanceDetails]:
+    """Inspects and validates a single GCE instance."""
+    full_inst_path = self.config.get_full_instance_path(inst_input)
+    details = self.gcp.get_instance_details(full_inst_path)
+    try:
+      ipaddress.IPv4Address(details.primary_ip)
+    except ValueError as exc:
+      raise models.ValidationError(
+          f"Instance '{inst_input}' returned malformed IPv4 address"
+          f" '{details.primary_ip}': {exc}"
+      ) from exc
+
+    string_utils.parse_vcf_version_from_image(details.boot_image_name)
+
+    clean_key = string_utils.clean_gcp_uri(full_inst_path)
+    logger.info(
+        "Validated GCE instance '%s' (IP: %s, Subnets: %d, Image: %s)",
+        full_inst_path,
+        details.primary_ip,
+        len(details.subnetworks),
+        details.boot_image_name,
+    )
+    return clean_key, details
+
+  def _validate_gce_instances(self) -> Dict[str, models.GCEInstanceDetails]:
+    """Executes single-pass inspection of all configured GCE instances in parallel.
+
+    Returns:
+        Dictionary mapping instance resource strings to cached
+        GCEInstanceDetails.
+    """
+    logger.info("Performing single-pass initial inspection of GCE instances...")
+    instances_list = self.gcp.resolve_gce_instances(
+        self.config.gce_instances,
+        project=self.config.project,
+        zone=self.config.zone,
+    )
+
+    if not instances_list:
+      raise models.ValidationError(
+          "gce_instances in configuration profile is empty!"
+      )
+
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=min(
+            constants.ValidationRules.MAX_INSPECTION_WORKERS,
+            len(instances_list),
+        )
+    ) as executor:
+      return dict(executor.map(self._inspect_single_instance, instances_list))
+
+  def _extract_and_audit_secrets(
+      self,
+  ) -> Tuple[str, Optional[str], Optional[str]]:
+    """Reads secrets from Secret Manager and enforces password complexity rules.
+
+    Returns:
+        Tuple of (new_esxi_root, vcf_appliance_root, vcf_appliance_local).
+    """
+    logger.info("Extracting and auditing Secret Manager payloads...")
+    esxi_root_secret_path = self.config.get_full_secret_path(
+        self.config.esxi_root_password_secret
+    )
+    esxi_root = self.gcp.get_secret_payload(esxi_root_secret_path)
+    string_utils.audit_password(
+        "esxi_root_password",
+        esxi_root,
+        min_len=constants.ValidationRules.ESXI_ROOT_PASSWORD_MIN_LEN,
+        max_len=constants.ValidationRules.ESXI_ROOT_PASSWORD_MAX_LEN,
+        min_classes=constants.ValidationRules.ESXI_ROOT_PASSWORD_MIN_CLASSES,
+    )
+
+    vcf_root: Optional[str] = None
+    vcf_local: Optional[str] = None
+
+    if self.config.vcf_deployment_config:
+      vcf_cfg = self.config.vcf_deployment_config
+      vcf_root_path = self.config.get_full_secret_path(
+          vcf_cfg.vcf_appliance_root_password_secret
+      )
+      vcf_root = self.gcp.get_secret_payload(vcf_root_path)
+      string_utils.audit_password(
+          "vcf_appliance_root_password",
+          vcf_root,
+          min_len=constants.ValidationRules.VCF_ROOT_PASSWORD_MIN_LEN,
+          max_len=constants.ValidationRules.VCF_ROOT_PASSWORD_MAX_LEN,
+          min_classes=constants.ValidationRules.VCF_ROOT_PASSWORD_MIN_CLASSES,
+      )
+
+      vcf_local_path = self.config.get_full_secret_path(
+          vcf_cfg.vcf_appliance_local_user_password_secret
+      )
+      vcf_local = self.gcp.get_secret_payload(vcf_local_path)
+      string_utils.audit_password(
+          "vcf_local_user_password",
+          vcf_local,
+          min_len=constants.ValidationRules.VCF_LOCAL_PASSWORD_MIN_LEN,
+          max_len=constants.ValidationRules.VCF_LOCAL_PASSWORD_MAX_LEN,
+          min_classes=constants.ValidationRules.VCF_LOCAL_PASSWORD_MIN_CLASSES,
+      )
+
+    logger.info("Secret Manager payloads successfully validated and audited.")
+    return esxi_root, vcf_root, vcf_local
+
+  def _govern_single_instance_tags(
+      self, details: models.GCEInstanceDetails
+  ) -> None:
+    """Inspects and applies required tags and labels to a single instance."""
+    required_tags = set(constants.ValidationRules.REQUIRED_GCE_TAGS)
+    required_labels = dict(constants.ValidationRules.REQUIRED_GCE_LABELS)
+
+    # 1. Govern network tags
+    missing_tags = required_tags - set(details.tags)
+    if missing_tags:
+      new_tags = sorted(list(set(details.tags) | required_tags))
+      self.gcp.set_instance_tags(
+          project=details.project,
+          zone=details.zone,
+          instance_name=details.short_name,
+          new_tags=new_tags,
+          fingerprint=details.tags_fingerprint,
+      )
+      details.tags = new_tags
+    else:
+      logger.info(
+          "Instance '%s' already contains required tags; skipping tag patch.",
+          details.instance_resource_string,
+      )
+
+    # 2. Govern instance labels
+    missing_labels = {
+        k: v for k, v in required_labels.items() if details.labels.get(k) != v
+    }
+    if missing_labels:
+      new_labels = dict(details.labels)
+      new_labels.update(required_labels)
+      self.gcp.set_instance_labels(
+          project=details.project,
+          zone=details.zone,
+          instance_name=details.short_name,
+          new_labels=new_labels,
+          label_fingerprint=details.label_fingerprint,
+      )
+      details.labels = new_labels
+    else:
+      logger.info(
+          "Instance '%s' already contains required labels; skipping label"
+          " patch.",
+          details.instance_resource_string,
+      )
+
+  def _govern_gce_instance_tags(
+      self, details_map: Dict[str, models.GCEInstanceDetails]
+  ) -> None:
+    """Inspects cached GCE instance tags and labels, applying mandatory entries if missing in parallel.
+
+    Args:
+        details_map: Cached map of GCEInstanceDetails from initial inspection.
+    """
+    logger.info(
+        "Governing GCE instance networking tags and labels across inventory..."
+    )
+    if not details_map:
+      return
+
+    instances = list(details_map.values())
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=min(
+            constants.ValidationRules.MAX_TAG_GOVERNANCE_WORKERS,
+            len(instances),
+        )
+    ) as executor:
+      list(executor.map(self._govern_single_instance_tags, instances))
+
+  def _derive_vcf_ova_url(
+      self, target_details: models.GCEInstanceDetails
+  ) -> str:
+    """Infers VCF installer OVA URL from regional offline depot server index.
+
+    Args:
+        target_details: Cached GCEInstanceDetails object for the target host.
+
+    Returns:
+        Fully constructed HTTPS URL pointing to optimal OVA artifact.
+
+    Raises:
+        models.ValidationError: If index cannot be fetched or parsed.
+    """
+    vcf_version = string_utils.parse_vcf_version_from_image(
+        target_details.boot_image_name
+    )
+    prefix = constants.ValidationRules.VCF_OVA_PREFIX_TEMPLATE.format(
+        vcf_version=vcf_version
+    )
+
+    region = string_utils.extract_region_from_zone(target_details.zone)
+    depot_host = constants.ValidationRules.get_depot_host_template().format(
+        region=region
+    )
+
+    logger.info(
+        "Deriving OVA URL for VCF version '%s' (prefix '%s') from offline depot"
+        " server '%s' on target host '%s'...",
+        vcf_version,
+        prefix,
+        depot_host,
+        target_details.instance_resource_string,
+    )
+
+    index_url = (
+        f"https://{depot_host}{constants.ValidationRules.DEPOT_INDEX_PATH}"
+    )
+    req = urllib.request.Request(index_url)
+
+    try:
+      ssl_ctx = ssl._create_unverified_context()
+      with urllib.request.urlopen(
+          req,
+          context=ssl_ctx,
+          timeout=constants.ValidationRules.DEPOT_INDEX_TIMEOUT_SECONDS,
+      ) as resp:
+        html_content = resp.read().decode("utf-8", errors="replace")
+    except Exception as exc:
+      raise models.ValidationError(
+          "Failed to fetch OVA index from offline depot server at"
+          f" '{index_url}': {exc}"
+      ) from exc
+
+    raw_ova_files = re.findall(
+        constants.ValidationRules.HTML_OVA_HREF_PATTERN, html_content
+    )
+    if not raw_ova_files:
+      raw_ova_files = re.findall(
+          constants.ValidationRules.HTML_OVA_HREF_FALLBACK_PATTERN, html_content
+      )
+
+    matching_ova_files = [f for f in raw_ova_files if f.startswith(prefix)]
+
+    if not matching_ova_files:
+      raise models.ValidationError(
+          f"No OVA files found matching prefix '{prefix}' in index from"
+          f" offline depot server at '{index_url}'"
+      )
+
+    optimal_object = string_utils.select_optimal_ova_object(
+        matching_ova_files, depot_host, prefix
+    )
+
+    ova_url = (
+        f"https://{depot_host}{constants.ValidationRules.DEPOT_INDEX_PATH}{optimal_object}"
+    )
+    logger.info("Inferred VCF installer OVA URL: %s", ova_url)
+    return ova_url
