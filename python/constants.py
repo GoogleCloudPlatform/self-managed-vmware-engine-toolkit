@@ -6,7 +6,6 @@ and VM deployment operational defaults used across Phase 1, Phase 2, and Phase 3
 """
 
 import enum
-import os
 from typing import Dict, List, Tuple
 
 
@@ -48,6 +47,7 @@ class VCFConfigKeys:
   )
   VCF_INSTALLER_FQDN = "vcf_installer_fqdn"
   VCF_INSTALLER_IP_SOURCE = "vcf_installer_ip_source"
+  OFFLINE_DEPOT_SUBNET_CIDR = "offline_depot_subnet_cidr"
   FORWARDING_RULE = "forwarding_rule"
   RESERVED_ADDRESS = "reserved_address"
 
@@ -57,6 +57,7 @@ class VCFConfigKeys:
       VCF_APPLIANCE_LOCAL_USER_PASSWORD_SECRET,
       VCF_INSTALLER_FQDN,
       VCF_INSTALLER_IP_SOURCE,
+      OFFLINE_DEPOT_SUBNET_CIDR,
   )
 
 
@@ -110,6 +111,10 @@ class GCPClientDefaults:
 
   COMPUTE_API_VERSION_ENV = "COMPUTE_API_VERSION"
   DEFAULT_COMPUTE_API_VERSION = "v1"
+  DEFAULT_DNS_HOST = "dns.googleapis.com"
+  STAGING_DNS_HOST = "staging-dns.sandbox.googleapis.com"
+  DEFAULT_DNS_API_VERSION = "v1"
+  STAGING_COMPUTE_API_VERSION = "staging_v1"
   OPERATION_TIMEOUT_SECONDS = 60
   DEFAULT_SECRET_VERSION = "versions/latest"
   NON_RETRYABLE_HTTP_CODES: Tuple[int, ...] = (400, 401, 403, 404)
@@ -144,14 +149,6 @@ class ValidationRules:
   DEPOT_INDEX_PATH = "/PROD/COMP/SDDC_MANAGER_VCF/"
   DEPOT_INDEX_TIMEOUT_SECONDS = 30
 
-  @classmethod
-  def get_depot_host_template(cls) -> str:
-    """Returns the regional depot host template for the active environment."""
-    env = os.environ.get(
-        cls.OFFLINE_DEPOT_ENV_VAR, cls.DEFAULT_OFFLINE_DEPOT_ENV
-    ).strip().lower()
-    return cls.DEPOT_HOST_TEMPLATES.get(env, cls.DEPOT_HOST_TEMPLATE)
-
   # Password complexity parameters (min_length, max_length, min_classes)
   ESXI_ROOT_PASSWORD_MIN_LEN = 7
   ESXI_ROOT_PASSWORD_MAX_LEN = 39
@@ -164,6 +161,34 @@ class ValidationRules:
   VCF_LOCAL_PASSWORD_MIN_LEN = 12
   VCF_LOCAL_PASSWORD_MAX_LEN = 0
   VCF_LOCAL_PASSWORD_MIN_CLASSES = 4
+
+
+class OfflineDepotDefaults:
+  """Defaults and multi-environment templates for Offline Depot PSC automation."""
+
+  MAX_SUBNET_PREFIX_LEN = 29
+  PSC_IP_PURPOSE = "GCE_ENDPOINT"
+  DNS_RECORD_TTL_SECONDS = 300
+
+  # Standard resource name templates
+  SUBNET_NAME_TEMPLATE = "offline-depot-subnet-{region}"
+  PSC_IP_NAME_TEMPLATE = "offline-depot-psc-ip-{region}"
+  PSC_FORWARDING_RULE_TEMPLATE = "offline-depot-psc-ep-{region}"
+  DNS_ZONE_NAME_TEMPLATE = "offline-depot-{region}-{env}-zone"
+
+  # Cloud DNS Private Base Domains (Trailing dot included)
+  BASE_DOMAIN_TEMPLATES: Dict[str, str] = {
+      "prod": "{region}.selfmanagedvmwareengine.goog.",
+      "staging": "{region}.staging.smve-vcf.internal.",
+      "autopush": "{region}.autopush.smve-vcf.internal.",
+  }
+
+  # Regional Service Attachment URI by environment
+  SERVICE_ATTACHMENT_TEMPLATES: Dict[str, str] = {
+      "prod": "projects/smve-offline-depot/regions/{region}/serviceAttachments/offline-depot-service-attachment-{region}",
+      "staging": "projects/smve-staging-offline-depot/regions/{region}/serviceAttachments/offline-depot-service-attachment-{region}",
+      "autopush": "projects/smve-autopush-offline-depot/regions/{region}/serviceAttachments/offline-depot-service-attachment-{region}",
+  }
 
 
 class VSANConstants:

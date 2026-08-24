@@ -66,10 +66,38 @@ class GCPClient:
         "Initialized GCPClient using Application Default Credentials (ADC)"
     )
 
+  def _is_staging_env(self) -> bool:
+    """Returns True if compute API version indicates staging/pre-production."""
+    return bool(
+        self._compute_api_version
+        and "staging" in self._compute_api_version.lower()
+    )
+
+  def get_dns_host(self) -> str:
+    """Returns the DNS API host ('staging-dns.sandbox.googleapis.com' or 'dns.googleapis.com')."""
+    if self._is_staging_env():
+      return constants.GCPClientDefaults.STAGING_DNS_HOST
+    return constants.GCPClientDefaults.DEFAULT_DNS_HOST
+
+  def get_dns_api_version(self) -> str:
+    """Returns the DNS API version (always 'v1')."""
+    return constants.GCPClientDefaults.DEFAULT_DNS_API_VERSION
+
+  def get_dns_compute_network_version(self) -> str:
+    """Returns the Compute API version used for VPC network URLs in DNS.
+
+    Always uses v1 version strings (e.g. 'staging_v1' for staging, 'v1' for prod).
+    """
+    if self._is_staging_env():
+      return constants.GCPClientDefaults.STAGING_COMPUTE_API_VERSION
+    return constants.GCPClientDefaults.DEFAULT_COMPUTE_API_VERSION
+
   def _install_api_version_rewriter(self) -> None:
-    """Hooks AuthorizedSession and requests.Session globally to redirect compute API version."""
+    """Hooks AuthorizedSession and requests.Session globally to redirect compute and DNS API versions."""
     if not self._compute_api_version:
       return
+
+    is_staging = self._is_staging_env()
 
     # Hook google.auth.transport.requests.AuthorizedSession
     if google is not None:
@@ -79,8 +107,11 @@ class GCPClient:
           orig_auth_request = auth_requests.AuthorizedSession.request
 
           def versioned_auth_request(sess, method, url, *args, **kwargs):
-            if isinstance(url, str) and "/compute/v1/" in url:
-              url = url.replace("/compute/v1/", f"/compute/{self._compute_api_version}/")
+            if isinstance(url, str):
+              if "/compute/v1/" in url:
+                url = url.replace("/compute/v1/", f"/compute/{self._compute_api_version}/")
+              if is_staging and "dns.googleapis.com" in url:
+                url = url.replace("dns.googleapis.com", constants.GCPClientDefaults.STAGING_DNS_HOST)
             return orig_auth_request(sess, method, url, *args, **kwargs)
 
           auth_requests.AuthorizedSession.request = versioned_auth_request
@@ -97,8 +128,11 @@ class GCPClient:
         orig_session_request = requests.Session.request
 
         def versioned_session_request(sess, method, url, *args, **kwargs):
-          if isinstance(url, str) and "/compute/v1/" in url:
-            url = url.replace("/compute/v1/", f"/compute/{self._compute_api_version}/")
+          if isinstance(url, str):
+            if "/compute/v1/" in url:
+              url = url.replace("/compute/v1/", f"/compute/{self._compute_api_version}/")
+            if is_staging and "dns.googleapis.com" in url:
+              url = url.replace("dns.googleapis.com", constants.GCPClientDefaults.STAGING_DNS_HOST)
           return orig_session_request(sess, method, url, *args, **kwargs)
 
         requests.Session.request = versioned_session_request
@@ -866,3 +900,384 @@ class GCPClient:
       ) from exc
 
     return ip_str
+
+  def create_offline_depot_subnetwork(
+      self,
+      project: str,
+      region: str,
+      name: str,
+      network: str,
+      ip_cidr_range: str,
+  ) -> str:
+    """Gets existing subnetwork or creates a dedicated offline depot subnetwork with Private Google Access enabled.
+
+    Args:
+        project: GCP Project ID.
+        region: GCP Region name.
+        name: Short name of the subnetwork.
+        network: VPC network name or resource URI.
+        ip_cidr_range: IPv4 CIDR range (e.g., '10.0.100.0/29').
+
+    Returns:
+        Subnetwork self_link or resource URI string.
+    """
+    logger.debug("Checking subnetwork '%s' in %s/%s...", name, project, region)
+    if not self._subnets_client:
+      self._init_subnets_client()
+
+    try:
+      sub = self._subnets_client.get(
+          project=project, region=region, subnetwork=name
+      )
+      self_link = getattr(sub, "self_link", "") or f"projects/{project}/regions/{region}/subnetworks/{name}"
+      logger.info("Subnetwork '%s' already exists in %s/%s.", name, project, region)
+      return self_link
+    except Exception as get_exc:
+      is_not_found = False
+      if gcp_exceptions and isinstance(get_exc, gcp_exceptions.NotFound):
+        is_not_found = True
+      elif getattr(get_exc, "code", None) == 404:
+        is_not_found = True
+      elif "404" in str(get_exc) or "NotFound" in type(get_exc).__name__:
+        is_not_found = True
+
+      if not is_not_found:
+        self._handle_gcp_exception("Subnetwork Get", f"{project}/{region}/{name}", get_exc)
+        raise
+
+    try:
+      logger.info(
+          "Creating dedicated subnet '%s' (%s) in %s/%s (VPC: %s)...",
+          name,
+          ip_cidr_range,
+          project,
+          region,
+          network,
+      )
+      subnet_body = compute_v1.Subnetwork(
+          name=name,
+          network=network,
+          ip_cidr_range=ip_cidr_range,
+          private_ip_google_access=True,
+          description="Subnet for SMVE Offline Depot PSC Endpoint",
+      )
+      op = self._subnets_client.insert(
+          project=project, region=region, subnetwork_resource=subnet_body
+      )
+      if hasattr(op, "result"):
+        op.result(timeout=constants.GCPClientDefaults.OPERATION_TIMEOUT_SECONDS)
+      logger.info("Successfully created subnetwork '%s'.", name)
+      return f"projects/{project}/regions/{region}/subnetworks/{name}"
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+      self._handle_gcp_exception("Subnetwork Insert", f"{project}/{region}/{name}", exc)
+      raise
+
+  def reserve_psc_internal_ip(
+      self, project: str, region: str, name: str, subnet_uri: str
+  ) -> Tuple[str, str]:
+    """Gets existing internal IP or reserves a new one with purpose GCE_ENDPOINT for PSC.
+
+    Args:
+        project: GCP Project ID.
+        region: GCP Region name.
+        name: Resource name of the address.
+        subnet_uri: Full subnetwork URI string.
+
+    Returns:
+        Tuple of (address_self_link_or_uri, ip_address_string).
+    """
+    logger.debug("Checking static internal IP '%s' in %s/%s...", name, project, region)
+    if not self._addresses_client:
+      self._init_addresses_client()
+
+    try:
+      addr = self._addresses_client.get(
+          project=project, region=region, address=name
+      )
+      self_link = getattr(addr, "self_link", "") or f"projects/{project}/regions/{region}/addresses/{name}"
+      ip = str(getattr(addr, "address", ""))
+      logger.info("PSC IP '%s' already exists with IP: %s.", name, ip)
+      return self_link, ip
+    except Exception as get_exc:
+      is_not_found = False
+      if gcp_exceptions and isinstance(get_exc, gcp_exceptions.NotFound):
+        is_not_found = True
+      elif getattr(get_exc, "code", None) == 404:
+        is_not_found = True
+      elif "404" in str(get_exc) or "NotFound" in type(get_exc).__name__:
+        is_not_found = True
+
+      if not is_not_found:
+        self._handle_gcp_exception("Address Get", f"{project}/{region}/{name}", get_exc)
+        raise
+
+    try:
+      logger.info(
+          "Reserving PSC Static Internal IP '%s' in subnet %s...",
+          name,
+          subnet_uri,
+      )
+      addr_body = compute_v1.Address(
+          name=name,
+          subnetwork=subnet_uri,
+          purpose=constants.OfflineDepotDefaults.PSC_IP_PURPOSE,
+          address_type="INTERNAL",
+          description="Static IP for PSC endpoint to access offline depot",
+      )
+      op = self._addresses_client.insert(
+          project=project, region=region, address_resource=addr_body
+      )
+      if hasattr(op, "result"):
+        op.result(timeout=constants.GCPClientDefaults.OPERATION_TIMEOUT_SECONDS)
+
+      addr = self._addresses_client.get(
+          project=project, region=region, address=name
+      )
+      self_link = getattr(addr, "self_link", "") or f"projects/{project}/regions/{region}/addresses/{name}"
+      ip = str(getattr(addr, "address", ""))
+      logger.info("Successfully allocated PSC Static Internal IP '%s' (%s).", name, ip)
+      return self_link, ip
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+      self._handle_gcp_exception("Address Insert", f"{project}/{region}/{name}", exc)
+      raise
+
+  def create_offline_depot_forwarding_rule(
+      self,
+      project: str,
+      region: str,
+      name: str,
+      network: str,
+      subnet_uri: str,
+      ip_address_link: str,
+      target_service_attachment: str,
+  ) -> str:
+    """Gets existing forwarding rule or creates a dedicated offline depot PSC endpoint forwarding rule.
+
+    Args:
+        project: GCP Project ID.
+        region: GCP Region name.
+        name: Short name of the forwarding rule.
+        network: VPC network name or URI.
+        subnet_uri: Subnetwork URI.
+        ip_address_link: Reserved static address self link or resource URI.
+        target_service_attachment: Regional service attachment URI.
+
+    Returns:
+        Forwarding rule self_link or resource URI string.
+    """
+    logger.debug("Checking PSC Forwarding Rule '%s' in %s/%s...", name, project, region)
+    if not self._fw_rules_client:
+      self._init_fw_rules_client()
+
+    try:
+      rule = self._fw_rules_client.get(
+          project=project, region=region, forwarding_rule=name
+      )
+      self_link = getattr(rule, "self_link", "") or f"projects/{project}/regions/{region}/forwardingRules/{name}"
+      logger.info("PSC Forwarding rule '%s' already exists.", name)
+      return self_link
+    except Exception as get_exc:
+      is_not_found = False
+      if gcp_exceptions and isinstance(get_exc, gcp_exceptions.NotFound):
+        is_not_found = True
+      elif getattr(get_exc, "code", None) == 404:
+        is_not_found = True
+      elif "404" in str(get_exc) or "NotFound" in type(get_exc).__name__:
+        is_not_found = True
+
+      if not is_not_found:
+        self._handle_gcp_exception("Forwarding Rule Get", f"{project}/{region}/{name}", get_exc)
+        raise
+
+    try:
+      logger.info(
+          "Creating PSC Forwarding Rule '%s' targeting '%s'...",
+          name,
+          target_service_attachment,
+      )
+      fw_kwargs = {
+          "name": name,
+          "network": network,
+          "subnetwork": subnet_uri,
+          "target": target_service_attachment,
+          "load_balancing_scheme": "",  # Empty string denotes PSC endpoint to Service Attachment
+      }
+      if hasattr(compute_v1.ForwardingRule, "I_p_address"):
+        fw_kwargs["I_p_address"] = ip_address_link
+      else:
+        fw_kwargs["ip_address"] = ip_address_link
+
+      fw_body = compute_v1.ForwardingRule(**fw_kwargs)
+      op = self._fw_rules_client.insert(
+          project=project, region=region, forwarding_rule_resource=fw_body
+      )
+      if hasattr(op, "result"):
+        op.result(timeout=constants.GCPClientDefaults.OPERATION_TIMEOUT_SECONDS)
+      logger.info("Successfully created PSC Forwarding Rule '%s'.", name)
+      return f"projects/{project}/regions/{region}/forwardingRules/{name}"
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+      self._handle_gcp_exception("Forwarding Rule Insert", f"{project}/{region}/{name}", exc)
+      raise
+
+  def create_offline_depot_private_dns_zone_and_record(
+      self,
+      project: str,
+      zone_name: str,
+      dns_name: str,
+      network_uri: str,
+      a_record_fqdn: str,
+      target_ip: str,
+      ttl: int = constants.OfflineDepotDefaults.DNS_RECORD_TTL_SECONDS,
+  ) -> None:
+    """Ensures offline depot private DNS zone exists, binds customer VPC network, and creates/updates A-record.
+
+    Args:
+        project: GCP Project ID.
+        zone_name: Resource name of the managed DNS zone.
+        dns_name: Base domain string (e.g., 'us-central1.selfmanagedvmwareengine.goog.').
+        network_uri: Full or partial VPC network URI.
+        a_record_fqdn: Fully qualified domain name for A record.
+        target_ip: Target IPv4 address for the PSC endpoint.
+        ttl: Time to live in seconds for DNS record.
+    """
+    try:
+      from google.auth.transport.requests import AuthorizedSession  # pylint: disable=g-import-not-at-top
+      credentials, _ = google.auth.default()
+      session = AuthorizedSession(credentials)
+    except Exception as auth_exc:
+      raise models.NonRetryableError(
+          f"Failed to obtain authenticated session for Cloud DNS API: {auth_exc}"
+      ) from auth_exc
+
+    dns_host = self.get_dns_host()
+    dns_version = self.get_dns_api_version()
+    compute_net_version = self.get_dns_compute_network_version()
+
+    dns_base_url = f"https://{dns_host}/dns/{dns_version}/projects/{project}/managedZones"
+    zone_url = f"{dns_base_url}/{zone_name}"
+    clean_net = string_utils.clean_gcp_uri(network_uri)
+    full_net_url = (
+        clean_net if clean_net.startswith("http")
+        else f"https://www.googleapis.com/compute/{compute_net_version}/{clean_net}"
+    )
+
+    clean_dns_name = dns_name if dns_name.endswith(".") else f"{dns_name}."
+    clean_a_record_fqdn = (
+        a_record_fqdn if a_record_fqdn.endswith(".") else f"{a_record_fqdn}."
+    )
+
+    # 1. Inspect or create Private Managed Zone with VPC Network Binding
+    try:
+      resp = session.get(zone_url)
+      if resp.status_code == 404:
+        logger.info(
+            "Creating Private DNS Zone '%s' for '%s' bound to '%s'...",
+            zone_name,
+            clean_dns_name,
+            full_net_url,
+        )
+        create_payload = {
+            "name": zone_name,
+            "dnsName": clean_dns_name,
+            "description": "Private DNS Zone for SMVE Offline Depot",
+            "visibility": constants.OfflineDepotDefaults.DNS_VISIBILITY_PRIVATE if hasattr(constants.OfflineDepotDefaults, "DNS_VISIBILITY_PRIVATE") else "private",
+            "privateVisibilityConfig": {
+                "networks": [{"networkUrl": full_net_url}]
+            },
+        }
+        create_resp = session.post(dns_base_url, json=create_payload)
+        if not create_resp.ok:
+          raise models.NonRetryableError(
+              f"Failed to create private DNS zone '{zone_name}' [HTTP {create_resp.status_code}]: {create_resp.text}"
+          )
+        logger.info("Successfully created Private DNS Zone '%s'.", zone_name)
+      elif resp.ok:
+        zone_data = resp.json()
+        bound_networks = [
+            n.get("networkUrl", "")
+            for n in zone_data.get("privateVisibilityConfig", {}).get("networks", [])
+        ]
+        # Match by full URL or project/global/networks path
+        target_net_path = clean_net.rstrip("/").split("/networks/")[-1]
+        is_bound = any(
+            full_net_url in net or target_net_path == net.rstrip("/").split("/networks/")[-1]
+            for net in bound_networks if net
+        )
+        if not is_bound:
+          logger.info(
+              "Binding VPC network '%s' to existing DNS zone '%s'...",
+              full_net_url,
+              zone_name,
+          )
+          bound_networks.append(full_net_url)
+          patch_payload = {
+              "privateVisibilityConfig": {
+                  "networks": [{"networkUrl": net} for net in bound_networks]
+              }
+          }
+          patch_resp = session.patch(zone_url, json=patch_payload)
+          if not patch_resp.ok:
+            raise models.NonRetryableError(
+                f"Failed to bind VPC network to DNS zone '{zone_name}' [HTTP {patch_resp.status_code}]: {patch_resp.text}"
+            )
+          logger.info("Successfully updated VPC bindings on DNS zone '%s'.", zone_name)
+      else:
+        raise models.NonRetryableError(
+            f"Error querying DNS zone '{zone_name}' [HTTP {resp.status_code}]: {resp.text}"
+        )
+    except Exception as exc:
+      if isinstance(exc, (models.ValidationError, models.NonRetryableError)):
+        raise
+      self._handle_gcp_exception("DNS Zone Manage", zone_name, exc)
+      raise
+
+    # 2. Add or Update A Record
+    try:
+      changes_url = f"{zone_url}/changes"
+      rrsets_url = f"{zone_url}/rrsets?name={clean_a_record_fqdn}&type=A"
+
+      rr_resp = session.get(rrsets_url)
+      deletions = []
+      if rr_resp.ok:
+        existing = rr_resp.json().get("rrsets", [])
+        for r in existing:
+          if r.get("rrdatas") == [target_ip]:
+            logger.info(
+                "DNS A-record '%s' -> %s already up to date.",
+                clean_a_record_fqdn,
+                target_ip,
+            )
+            return
+          deletions.append(r)
+
+      logger.info(
+          "Upserting DNS A Record: '%s' -> %s (TTL: %d)...",
+          clean_a_record_fqdn,
+          target_ip,
+          ttl,
+      )
+      change_payload = {
+          "additions": [{
+              "name": clean_a_record_fqdn,
+              "type": "A",
+              "ttl": ttl,
+              "rrdatas": [target_ip],
+          }],
+          "deletions": deletions,
+      }
+      change_resp = session.post(changes_url, json=change_payload)
+      if not change_resp.ok:
+        raise models.NonRetryableError(
+            f"Failed to apply DNS record change for '{clean_a_record_fqdn}' [HTTP {change_resp.status_code}]: {change_resp.text}"
+        )
+      logger.info(
+          "Successfully applied DNS A-record for '%s' -> %s.",
+          clean_a_record_fqdn,
+          target_ip,
+      )
+    except Exception as exc:
+      if isinstance(exc, (models.ValidationError, models.NonRetryableError)):
+        raise
+      self._handle_gcp_exception("DNS Record Update", clean_a_record_fqdn, exc)
+      raise
+

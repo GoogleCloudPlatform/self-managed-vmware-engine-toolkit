@@ -20,6 +20,7 @@ from clients import gcp_client
 import constants
 import models
 from utils import logger as logger_mod
+from utils import network_utils
 from vcf_deployer import network_setup
 from vcf_deployer import password_resetter
 from vcf_deployer import validator
@@ -187,6 +188,9 @@ def load_config(config_file_path: str) -> models.DeployerConfig:
             f"Mandatory VCF configuration field '{vkey}' is missing or empty!"
         )
 
+    cidr = str(vcf_data[constants.VCFConfigKeys.OFFLINE_DEPOT_SUBNET_CIDR]).strip()
+    network_utils.validate_subnet_cidr_size(cidr)
+
     vcf_cfg = models.VCFDeploymentConfig(
         target_gce_instance=vcf_data[
             constants.VCFConfigKeys.TARGET_GCE_INSTANCE
@@ -203,6 +207,7 @@ def load_config(config_file_path: str) -> models.DeployerConfig:
         vcf_installer_ip_source=vcf_data[
             constants.VCFConfigKeys.VCF_INSTALLER_IP_SOURCE
         ],
+        offline_depot_subnet_cidr=cidr,
     )
 
   config = models.DeployerConfig(

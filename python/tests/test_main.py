@@ -75,6 +75,7 @@ class TestMain(unittest.TestCase):
         "esxi_root_password_secret": "esxi-root",
         "vcf_deployment_config": {
             "target_gce_instance": "esxi-1",
+            "offline_depot_subnet_cidr": "10.0.100.0/29",
             "vcf_appliance_root_password_secret": "vcf-root",
             "vcf_appliance_local_user_password_secret": "vcf-local",
             "vcf_installer_fqdn": "sddc-manager.lab.local",
@@ -276,6 +277,7 @@ class TestMain(unittest.TestCase):
         vcf_appliance_local_user_password_secret="vcf-local",
         vcf_installer_fqdn="sddc-manager.lab.local",
         vcf_installer_ip_source={"forwarding_rule": "fr-1"},
+        offline_depot_subnet_cidr="10.0.100.0/29",
     )
     mock_cfg = models.DeployerConfig(
         project="p",
@@ -346,7 +348,7 @@ class TestMain(unittest.TestCase):
         "esxi_root_password_secret": "esxi-root",
         "vcf_deployment_config": {
             "target_gce_instance": "esxi-1",
-            # missing vcf_appliance_root_password_secret
+            # missing required fields
         },
     }
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
@@ -357,6 +359,33 @@ class TestMain(unittest.TestCase):
       with self.assertRaises(models.ValidationError) as ctx:
         main_mod.load_config(temp_path)
       self.assertIn("Mandatory VCF configuration field", str(ctx.exception))
+    finally:
+      os.remove(temp_path)
+
+  def test_load_config_invalid_cidr_raises_validation_error(self):
+    """Verifies ValidationError when offline_depot_subnet_cidr prefix > 29."""
+    invalid_cidr_data = {
+        "project": "p",
+        "zone": "z",
+        "gce_instances": ["esxi-1"],
+        "esxi_root_password_secret": "esxi-root",
+        "vcf_deployment_config": {
+            "target_gce_instance": "esxi-1",
+            "offline_depot_subnet_cidr": "10.0.100.0/30",
+            "vcf_appliance_root_password_secret": "vcf-root",
+            "vcf_appliance_local_user_password_secret": "vcf-local",
+            "vcf_installer_fqdn": "sddc-manager.lab.local",
+            "vcf_installer_ip_source": {"reserved_address": "vcf-ip"},
+        },
+    }
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
+      json.dump(invalid_cidr_data, tf)
+      temp_path = tf.name
+
+    try:
+      with self.assertRaises(models.ValidationError) as ctx:
+        main_mod.load_config(temp_path)
+      self.assertIn("is too small", str(ctx.exception))
     finally:
       os.remove(temp_path)
 

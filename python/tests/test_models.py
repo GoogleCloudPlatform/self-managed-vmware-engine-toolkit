@@ -31,10 +31,12 @@ class TestModels(unittest.TestCase):
         vcf_appliance_local_user_password_secret="vcf-local",
         vcf_installer_fqdn="sddc-manager.lab.local",
         vcf_installer_ip_source="vcf-ip",
+        offline_depot_subnet_cidr="10.0.100.0/29",
     )
     self.assertEqual(vcf_cfg.target_gce_instance, "esxi-1")
     self.assertEqual(vcf_cfg.vcf_installer_fqdn, "sddc-manager.lab.local")
     self.assertEqual(vcf_cfg.vcf_installer_ip_source, "vcf-ip")
+    self.assertEqual(vcf_cfg.offline_depot_subnet_cidr, "10.0.100.0/29")
 
   def test_deployer_config_instantiation_and_helpers(self):
     """Verifies master DeployerConfig dataclass, region property, and path helpers."""

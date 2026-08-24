@@ -1,6 +1,7 @@
 """Unit tests for utils/string_utils.py module."""
 
 import unittest
+from unittest import mock
 
 import models
 from utils import string_utils
@@ -161,6 +162,93 @@ class TestStringUtils(unittest.TestCase):
           ["file1.txt", "file2.iso"], "test-bucket", "prefix"
       )
 
+  @mock.patch.dict("os.environ", {"OFFLINE_DEPOT_ENV": "staging"})
+  def test_get_depot_host_template_from_offline_depot_env(self):
+    """Verifies get_depot_host_template reads OFFLINE_DEPOT_ENV."""
+    self.assertEqual(
+        string_utils.get_depot_host_template(),
+        "offline-depot.{region}.staging.smve-vcf.internal",
+    )
+
+  @mock.patch.dict("os.environ", {"OFFLINE_DEPOT_ENV": "autopush"})
+  def test_get_depot_host_template_from_autopush_env(self):
+    """Verifies get_depot_host_template reads OFFLINE_DEPOT_ENV=autopush."""
+    self.assertEqual(
+        string_utils.get_depot_host_template(),
+        "offline-depot.{region}.autopush.smve-vcf.internal",
+    )
+
+  @mock.patch.dict("os.environ", {}, clear=True)
+  def test_get_depot_host_template_default_prod(self):
+    """Verifies get_depot_host_template defaults to prod when env is unset."""
+    self.assertEqual(
+        string_utils.get_depot_host_template(),
+        "offline-depot.{region}.selfmanagedvmwareengine.goog",
+    )
+
+  def test_offline_depot_domain_helpers(self):
+    """Verifies offline depot domain and URI helper functions across environments."""
+    # Test Prod defaults (no env var)
+    with mock.patch.dict("os.environ", {}, clear=True):
+      self.assertEqual(string_utils.get_active_env(), "prod")
+      self.assertEqual(
+          string_utils.get_base_domain("us-central1"),
+          "us-central1.selfmanagedvmwareengine.goog.",
+      )
+      self.assertEqual(
+          string_utils.get_host_fqdn("us-central1"),
+          "offline-depot.us-central1.selfmanagedvmwareengine.goog.",
+      )
+      self.assertEqual(
+          string_utils.get_service_attachment_uri("us-central1"),
+          "projects/smve-offline-depot/regions/us-central1/serviceAttachments/offline-depot-service-attachment-us-central1",
+      )
+      self.assertEqual(
+          string_utils.get_dns_zone_name("us-central1"),
+          "offline-depot-us-central1-prod-zone",
+      )
+
+    # Test Autopush environment
+    with mock.patch.dict("os.environ", {"OFFLINE_DEPOT_ENV": "autopush"}):
+      self.assertEqual(string_utils.get_active_env(), "autopush")
+      self.assertEqual(
+          string_utils.get_base_domain("us-central1"),
+          "us-central1.autopush.smve-vcf.internal.",
+      )
+      self.assertEqual(
+          string_utils.get_host_fqdn("us-central1"),
+          "offline-depot.us-central1.autopush.smve-vcf.internal.",
+      )
+      self.assertEqual(
+          string_utils.get_service_attachment_uri("us-central1"),
+          "projects/smve-autopush-offline-depot/regions/us-central1/serviceAttachments/offline-depot-service-attachment-us-central1",
+      )
+      self.assertEqual(
+          string_utils.get_dns_zone_name("us-central1"),
+          "offline-depot-us-central1-autopush-zone",
+      )
+
+    # Test Staging environment
+    with mock.patch.dict("os.environ", {"OFFLINE_DEPOT_ENV": "staging"}):
+      self.assertEqual(string_utils.get_active_env(), "staging")
+      self.assertEqual(
+          string_utils.get_base_domain("us-central1"),
+          "us-central1.staging.smve-vcf.internal.",
+      )
+      self.assertEqual(
+          string_utils.get_host_fqdn("us-central1"),
+          "offline-depot.us-central1.staging.smve-vcf.internal.",
+      )
+      self.assertEqual(
+          string_utils.get_service_attachment_uri("us-central1"),
+          "projects/smve-staging-offline-depot/regions/us-central1/serviceAttachments/offline-depot-service-attachment-us-central1",
+      )
+      self.assertEqual(
+          string_utils.get_dns_zone_name("us-central1"),
+          "offline-depot-us-central1-staging-zone",
+      )
+
 
 if __name__ == "__main__":
   unittest.main()
+

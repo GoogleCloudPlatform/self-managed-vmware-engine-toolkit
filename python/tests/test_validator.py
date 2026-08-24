@@ -86,6 +86,7 @@ class TestPreDeploymentValidator(unittest.TestCase):
         vcf_appliance_local_user_password_secret="vcf-local",
         vcf_installer_fqdn="sddc-manager.lab.local",
         vcf_installer_ip_source="10.0.0.50",
+        offline_depot_subnet_cidr="10.0.100.0/29",
     )
 
     self.mock_gcp.get_secret_payload.side_effect = [
@@ -392,11 +393,12 @@ class TestPreDeploymentValidator(unittest.TestCase):
         str(ctx.exception),
     )
 
+  @mock.patch("vcf_deployer.offline_depot_infra.OfflineDepotInfraManager")
   @mock.patch("utils.network_utils.capture_ssl_thumbprint")
   @mock.patch("utils.network_utils.extract_vlan_cidr_and_routing")
   @mock.patch.object(validator.PreDeploymentValidator, "_derive_vcf_ova_url")
   def test_validate_and_extract_full_vcf_flow(
-      self, mock_derive_url, mock_extract_vlan, mock_capture_thumbprint
+      self, mock_derive_url, mock_extract_vlan, mock_capture_thumbprint, mock_infra_mgr_cls
   ):
     """Verifies full Phase 1 validation and ValidationContext generation for VCF deployment."""
     self.mock_config.gce_instances = ["esxi-1"]
@@ -415,6 +417,7 @@ class TestPreDeploymentValidator(unittest.TestCase):
         vcf_appliance_local_user_password_secret="vcf-local",
         vcf_installer_fqdn="sddc-manager.lab.local",
         vcf_installer_ip_source={"forwarding_rule": "fr-1"},
+        offline_depot_subnet_cidr="10.0.100.0/29",
     )
     self.mock_config.vcf_deployment_config = vcf_cfg
     self.mock_config.esxi_root_password_secret = "esxi-root"
@@ -426,7 +429,14 @@ class TestPreDeploymentValidator(unittest.TestCase):
         zone="z",
         primary_ip="10.0.0.5",
         boot_image_name="esxi-5-1-1-12345",
-        subnetworks=[],
+        subnetworks=[
+            models.SubnetworkInfo(
+                subnetwork_uri="projects/p/regions/z/subnetworks/sub-1",
+                vlan_id=0,
+                network_uri="projects/p/global/networks/vpc-1",
+                cidr="10.0.0.0/24",
+            )
+        ],
         tags=["mm-gcve-node"],
         tags_fingerprint="fp_tag",
         labels={"gcve-node": "true"},
@@ -438,8 +448,13 @@ class TestPreDeploymentValidator(unittest.TestCase):
         "ComplexVCF_Root_P@ssword123",
         "ComplexVCF_Local_P@ss123",
     ]
+    mock_infra_mgr_cls.return_value.setup_offline_depot_infrastructure.return_value = {
+        "psc_ip": "10.0.100.2",
+        "fqdn": "offline-depot.z.selfmanagedvmwareengine.goog.",
+        "subnet_uri": "projects/p/regions/z/subnetworks/sub-1",
+    }
     self.mock_gcp.resolve_ip_source.return_value = "10.0.0.50"
-    mock_derive_url.return_value = "https://depot/vcf.ova"
+    mock_derive_url.return_value = "https://10.0.100.2/vcf.ova"
     mock_extract_vlan.return_value = (
         100,
         "10.0.0.0/24",
@@ -452,7 +467,7 @@ class TestPreDeploymentValidator(unittest.TestCase):
 
     self.assertEqual(ctx.target_esxi_ip, "10.0.0.5")
     self.assertEqual(ctx.vcf_installer_ip, "10.0.0.50")
-    self.assertEqual(ctx.vcf_installer_ova_url, "https://depot/vcf.ova")
+    self.assertEqual(ctx.vcf_installer_ova_url, "https://10.0.100.2/vcf.ova")
     self.assertEqual(ctx.vlan_id, 100)
     self.assertEqual(ctx.sddc_manager_netmask, "255.255.255.0")
     self.assertEqual(ctx.sddc_manager_gateway, "10.0.0.1")
@@ -479,6 +494,7 @@ class TestPreDeploymentValidator(unittest.TestCase):
         vcf_appliance_local_user_password_secret="vcf-local",
         vcf_installer_fqdn="sddc-manager.lab.local",
         vcf_installer_ip_source={"forwarding_rule": "fr-1"},
+        offline_depot_subnet_cidr="10.0.100.0/29",
     )
     self.mock_config.vcf_deployment_config = vcf_cfg
     self.mock_config.esxi_root_password_secret = "esxi-root"
@@ -567,6 +583,43 @@ class TestPreDeploymentValidator(unittest.TestCase):
     self.assertEqual(
         url,
         "https://offline-depot.us-central1.autopush.smve-vcf.internal/PROD/COMP/SDDC_MANAGER_VCF/VCF-SDDC-Manager-Appliance-5.1.1.1234.ova",
+    )
+
+  @mock.patch("urllib.request.urlopen")
+  def test_derive_vcf_ova_url_with_psc_ip(self, mock_urlopen):
+    """Verifies that _derive_vcf_ova_url uses PSC IP in URL when provided."""
+    mock_resp = mock.MagicMock()
+    mock_resp.read.return_value = (
+        b'<html><a href="VCF-SDDC-Manager-Appliance-5.1.1.1234.ova">link</a></html>'
+    )
+    mock_resp.__enter__.return_value = mock_resp
+    mock_urlopen.return_value = mock_resp
+
+    target_details = models.GCEInstanceDetails(
+        instance_resource_string="projects/p/zones/us-central1-a/instances/esxi-1",
+        short_name="esxi-1",
+        project="p",
+        zone="us-central1-a",
+        primary_ip="10.0.0.5",
+        boot_image_name="esxi-5-1-1-12345",
+        subnetworks=[],
+        tags=[],
+        tags_fingerprint="",
+        labels={},
+        label_fingerprint="",
+    )
+
+    url = self.validator._derive_vcf_ova_url(
+        target_details, depot_host_or_ip="10.0.100.2"
+    )
+    self.assertEqual(
+        url,
+        "https://10.0.100.2/PROD/COMP/SDDC_MANAGER_VCF/VCF-SDDC-Manager-Appliance-5.1.1.1234.ova",
+    )
+    req = mock_urlopen.call_args[0][0]
+    self.assertEqual(
+        req.headers.get("Host"),
+        "offline-depot.us-central1.selfmanagedvmwareengine.goog",
     )
 
 

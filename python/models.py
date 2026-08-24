@@ -63,6 +63,7 @@ class VCFDeploymentConfig:
   vcf_appliance_local_user_password_secret: str
   vcf_installer_fqdn: str
   vcf_installer_ip_source: Any
+  offline_depot_subnet_cidr: str
 
 
 @dataclasses.dataclass

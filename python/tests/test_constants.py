@@ -59,6 +59,10 @@ class TestConstants(unittest.TestCase):
         constants.VCFConfigKeys.VCF_INSTALLER_IP_SOURCE,
         "vcf_installer_ip_source",
     )
+    self.assertEqual(
+        constants.VCFConfigKeys.OFFLINE_DEPOT_SUBNET_CIDR,
+        "offline_depot_subnet_cidr",
+    )
 
     for key in (
         constants.VCFConfigKeys.TARGET_GCE_INSTANCE,
@@ -66,6 +70,7 @@ class TestConstants(unittest.TestCase):
         constants.VCFConfigKeys.VCF_APPLIANCE_LOCAL_USER_PASSWORD_SECRET,
         constants.VCFConfigKeys.VCF_INSTALLER_FQDN,
         constants.VCFConfigKeys.VCF_INSTALLER_IP_SOURCE,
+        constants.VCFConfigKeys.OFFLINE_DEPOT_SUBNET_CIDR,
     ):
       self.assertIn(key, constants.VCFConfigKeys.REQUIRED_KEYS)
 
@@ -107,6 +112,19 @@ class TestConstants(unittest.TestCase):
     )
     self.assertEqual(
         constants.GCPClientDefaults.DEFAULT_COMPUTE_API_VERSION, "v1"
+    )
+    self.assertEqual(
+        constants.GCPClientDefaults.DEFAULT_DNS_HOST, "dns.googleapis.com"
+    )
+    self.assertEqual(
+        constants.GCPClientDefaults.STAGING_DNS_HOST,
+        "staging-dns.sandbox.googleapis.com",
+    )
+    self.assertEqual(
+        constants.GCPClientDefaults.DEFAULT_DNS_API_VERSION, "v1"
+    )
+    self.assertEqual(
+        constants.GCPClientDefaults.STAGING_COMPUTE_API_VERSION, "staging_v1"
     )
 
   def test_validation_rules(self):
@@ -155,30 +173,6 @@ class TestConstants(unittest.TestCase):
     )
     self.assertEqual(
         constants.ValidationRules.VCF_LOCAL_PASSWORD_MIN_LEN, 12
-    )
-
-  @mock.patch.dict("os.environ", {"OFFLINE_DEPOT_ENV": "staging"})
-  def test_get_depot_host_template_from_offline_depot_env(self):
-    """Verifies get_depot_host_template reads OFFLINE_DEPOT_ENV."""
-    self.assertEqual(
-        constants.ValidationRules.get_depot_host_template(),
-        "offline-depot.{region}.staging.smve-vcf.internal",
-    )
-
-  @mock.patch.dict("os.environ", {"OFFLINE_DEPOT_ENV": "autopush"})
-  def test_get_depot_host_template_from_autopush_env(self):
-    """Verifies get_depot_host_template reads OFFLINE_DEPOT_ENV=autopush."""
-    self.assertEqual(
-        constants.ValidationRules.get_depot_host_template(),
-        "offline-depot.{region}.autopush.smve-vcf.internal",
-    )
-
-  @mock.patch.dict("os.environ", {}, clear=True)
-  def test_get_depot_host_template_default_prod(self):
-    """Verifies get_depot_host_template defaults to prod when env is unset."""
-    self.assertEqual(
-        constants.ValidationRules.get_depot_host_template(),
-        "offline-depot.{region}.selfmanagedvmwareengine.goog",
     )
 
   def test_vsan_constants(self):
@@ -241,6 +235,27 @@ class TestConstants(unittest.TestCase):
     self.assertEqual(constants.PasswordResetDefaults.DEFAULT_BATCH_SIZE, 10)
     self.assertEqual(constants.PasswordResetDefaults.DEFAULT_ROOT_USER, "root")
 
+  def test_offline_depot_defaults(self):
+    """Verifies OfflineDepotDefaults constants and template structures."""
+    self.assertEqual(constants.OfflineDepotDefaults.MAX_SUBNET_PREFIX_LEN, 29)
+    self.assertEqual(
+        constants.OfflineDepotDefaults.PSC_IP_PURPOSE, "GCE_ENDPOINT"
+    )
+    self.assertEqual(constants.OfflineDepotDefaults.DNS_RECORD_TTL_SECONDS, 300)
+    self.assertIn("prod", constants.OfflineDepotDefaults.BASE_DOMAIN_TEMPLATES)
+    self.assertIn("staging", constants.OfflineDepotDefaults.BASE_DOMAIN_TEMPLATES)
+    self.assertIn("autopush", constants.OfflineDepotDefaults.BASE_DOMAIN_TEMPLATES)
+    self.assertIn(
+        "prod", constants.OfflineDepotDefaults.SERVICE_ATTACHMENT_TEMPLATES
+    )
+    self.assertIn(
+        "staging", constants.OfflineDepotDefaults.SERVICE_ATTACHMENT_TEMPLATES
+    )
+    self.assertIn(
+        "autopush", constants.OfflineDepotDefaults.SERVICE_ATTACHMENT_TEMPLATES
+    )
+
 
 if __name__ == "__main__":
   unittest.main()
+

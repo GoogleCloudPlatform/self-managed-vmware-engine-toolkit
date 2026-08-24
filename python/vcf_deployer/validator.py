@@ -20,6 +20,7 @@ import constants
 import models
 from utils import network_utils
 from utils import string_utils
+from vcf_deployer import offline_depot_infra
 
 logger = logging.getLogger(constants.DeployerDefaults.LOGGER_NAME)
 
@@ -75,7 +76,7 @@ class PreDeploymentValidator:
           new_esxi_root_password=root_pass,
       )
 
-    # 4. Target ESXi host lookup from cache and VCF OVA URL inference
+    # 4. Target ESXi host lookup from cache
     target_full_path = self.config.get_full_instance_path(
         vcf_cfg.target_gce_instance
     )
@@ -87,7 +88,23 @@ class PreDeploymentValidator:
           " found in gce_instances or missing valid internal IP."
       )
 
-    ova_url = self._derive_vcf_ova_url(target_details)
+    # 4b. Provision / Verify Offline Depot Subnet, PSC Endpoint & Private DNS
+    if not target_details.subnetworks:
+      raise models.ValidationError(
+          f"Target instance '{target_details.instance_resource_string}' has no attached subnetworks to determine VPC network."
+      )
+    discovered_vpc = target_details.subnetworks[0].network_uri
+    infra_mgr = offline_depot_infra.OfflineDepotInfraManager(
+        config=self.config,
+        gcp=self.gcp,
+        vpc_network=discovered_vpc,
+        cidr=vcf_cfg.offline_depot_subnet_cidr,
+    )
+    depot_infra = infra_mgr.setup_offline_depot_infrastructure()
+    depot_ip = depot_infra.get("psc_ip") if depot_infra else None
+
+    # 5. VCF OVA URL inference and SSL thumbprint extraction
+    ova_url = self._derive_vcf_ova_url(target_details, depot_host_or_ip=depot_ip)
 
     # 5. Dynamic IP source resolution (forwarding rule or reserved address)
     if not vcf_cfg.vcf_installer_ip_source:
@@ -321,12 +338,15 @@ class PreDeploymentValidator:
       list(executor.map(self._govern_single_instance_tags, instances))
 
   def _derive_vcf_ova_url(
-      self, target_details: models.GCEInstanceDetails
+      self,
+      target_details: models.GCEInstanceDetails,
+      depot_host_or_ip: Optional[str] = None,
   ) -> str:
     """Infers VCF installer OVA URL from regional offline depot server index.
 
     Args:
         target_details: Cached GCEInstanceDetails object for the target host.
+        depot_host_or_ip: Optional specific IP or hostname for depot connections.
 
     Returns:
         Fully constructed HTTPS URL pointing to optimal OVA artifact.
@@ -342,9 +362,10 @@ class PreDeploymentValidator:
     )
 
     region = string_utils.extract_region_from_zone(target_details.zone)
-    depot_host = constants.ValidationRules.get_depot_host_template().format(
+    fqdn_host = string_utils.get_depot_host_template().format(
         region=region
     )
+    depot_host = depot_host_or_ip or fqdn_host
 
     logger.info(
         "Deriving OVA URL for VCF version '%s' (prefix '%s') from offline depot"
@@ -358,7 +379,11 @@ class PreDeploymentValidator:
     index_url = (
         f"https://{depot_host}{constants.ValidationRules.DEPOT_INDEX_PATH}"
     )
-    req = urllib.request.Request(index_url)
+    headers = {
+        "Host": fqdn_host,
+        "User-Agent": constants.VMDeployerDefaults.HTTP_USER_AGENT,
+    }
+    req = urllib.request.Request(index_url, headers=headers)
 
     try:
       ssl_ctx = ssl._create_unverified_context()
