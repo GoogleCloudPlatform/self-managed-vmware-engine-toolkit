@@ -516,8 +516,8 @@ class TestGCPClient(unittest.TestCase):
       )
 
   @mock.patch("clients.gcp_client.compute_v1")
-  def test_list_instances_filtered_by_prefix_and_subnet(self, mock_compute):
-    """Verifies listing and filtering GCE instances by prefix and subnet."""
+  def test_list_nodes_filtered_by_prefix_and_subnet(self, mock_compute):
+    """Verifies listing and filtering GCE nodes by prefix and subnet."""
     mock_compute_inst = mock.MagicMock()
     mock_compute.InstancesClient.return_value = mock_compute_inst
 
@@ -542,70 +542,70 @@ class TestGCPClient(unittest.TestCase):
     mock_compute_inst.list.return_value = [inst1, inst2, inst3]
 
     # Test prefix only
-    res_prefix = self.client.list_instances("p", "z", prefix="esxi-")
+    res_prefix = self.client.list_nodes("p", "z", prefix="esxi-")
     self.assertEqual(res_prefix, ["esxi-node-0", "esxi-node-1"])
 
     # Test subnet only
-    res_subnet = self.client.list_instances("p", "z", subnet="subnet-a")
+    res_subnet = self.client.list_nodes("p", "z", subnet="subnet-a")
     self.assertEqual(res_subnet, ["esxi-node-0", "jumpbox-vm"])
 
     # Test prefix and subnet
-    res_both = self.client.list_instances(
+    res_both = self.client.list_nodes(
         "p", "z", prefix="esxi-", subnet="subnet-a"
     )
     self.assertEqual(res_both, ["esxi-node-0"])
 
     # Test full subnet URI
-    res_uri = self.client.list_instances(
+    res_uri = self.client.list_nodes(
         "p", "z", subnet="projects/p/regions/r/subnetworks/subnet-b"
     )
     self.assertEqual(res_uri, ["esxi-node-1"])
 
     # Test no filters
-    res_all = self.client.list_instances("p", "z")
+    res_all = self.client.list_nodes("p", "z")
     self.assertEqual(res_all, ["esxi-node-0", "esxi-node-1", "jumpbox-vm"])
 
   @mock.patch("clients.gcp_client.compute_v1")
-  def test_list_instances_handles_gcp_exception(self, mock_compute):
-    """Verifies list_instances translates GCP exceptions."""
+  def test_list_nodes_handles_gcp_exception(self, mock_compute):
+    """Verifies list_nodes translates GCP exceptions."""
     mock_compute_inst = mock.MagicMock()
     mock_compute.InstancesClient.return_value = mock_compute_inst
     mock_compute_inst.list.side_effect = RuntimeError("API unavailable")
 
     with self.assertRaises(models.RetryableError) as ctx:
-      self.client.list_instances("p", "z")
+      self.client.list_nodes("p", "z")
     self.assertIn("Unexpected operational fault", str(ctx.exception))
 
-  def test_resolve_gce_instances_list(self):
-    """Verifies resolving instances from explicit list input."""
-    res = self.client.resolve_gce_instances(["esxi-0", "esxi-1"], "p", "z")
+  def test_resolve_gce_nodes_list(self):
+    """Verifies resolving nodes from explicit list input."""
+    res = self.client.resolve_gce_nodes(["esxi-0", "esxi-1"], "p", "z")
     self.assertEqual(res, ["esxi-0", "esxi-1"])
 
-  @mock.patch.object(gcp_client.GCPClient, "list_instances")
-  def test_resolve_gce_instances_dict_prefix(self, mock_list):
-    """Verifies resolving instances from dict containing prefix."""
+  @mock.patch.object(gcp_client.GCPClient, "list_nodes")
+  def test_resolve_gce_nodes_dict_prefix(self, mock_list):
+    """Verifies resolving nodes from dict containing prefix."""
     mock_list.return_value = ["esxi-0", "esxi-1"]
-    res = self.client.resolve_gce_instances({"prefix": "esxi-"}, "p", "z")
+    res = self.client.resolve_gce_nodes({"prefix": "esxi-"}, "p", "z")
     self.assertEqual(res, ["esxi-0", "esxi-1"])
     mock_list.assert_called_once_with(
         project="p", zone="z", prefix="esxi-", subnet=None
     )
 
-  @mock.patch.object(gcp_client.GCPClient, "list_instances")
-  def test_resolve_gce_instances_dict_subnet(self, mock_list):
-    """Verifies resolving instances from dict containing subnet."""
+  @mock.patch.object(gcp_client.GCPClient, "list_nodes")
+  def test_resolve_gce_nodes_dict_subnet(self, mock_list):
+    """Verifies resolving nodes from dict containing subnet."""
     mock_list.return_value = ["esxi-0"]
-    res = self.client.resolve_gce_instances({"subnet": "my-subnet"}, "p", "z")
+    res = self.client.resolve_gce_nodes({"subnet": "my-subnet"}, "p", "z")
     self.assertEqual(res, ["esxi-0"])
     mock_list.assert_called_once_with(
         project="p", zone="z", prefix=None, subnet="my-subnet"
     )
 
-  @mock.patch.object(gcp_client.GCPClient, "list_instances")
-  def test_resolve_gce_instances_dict_both_prefix_and_subnet(self, mock_list):
-    """Verifies resolving instances when dict contains both prefix and subnet."""
+  @mock.patch.object(gcp_client.GCPClient, "list_nodes")
+  def test_resolve_gce_nodes_dict_both_prefix_and_subnet(self, mock_list):
+    """Verifies resolving nodes when dict contains both prefix and subnet."""
     mock_list.return_value = ["esxi-0"]
-    res = self.client.resolve_gce_instances(
+    res = self.client.resolve_gce_nodes(
         {"prefix": "esxi-", "subnet": "my-subnet"}, "p", "z"
     )
     self.assertEqual(res, ["esxi-0"])
@@ -613,27 +613,27 @@ class TestGCPClient(unittest.TestCase):
         project="p", zone="z", prefix="esxi-", subnet="my-subnet"
     )
 
-  def test_resolve_gce_instances_dict_invalid_keys_raises_validation_error(self):
+  def test_resolve_gce_nodes_dict_invalid_keys_raises_validation_error(self):
     """Verifies ValidationError when dict contains neither prefix nor subnet."""
     with self.assertRaises(models.ValidationError) as ctx:
-      self.client.resolve_gce_instances({"invalid_key": "val"}, "p", "z")
+      self.client.resolve_gce_nodes({"invalid_key": "val"}, "p", "z")
     self.assertIn("must contain 'prefix' and/or 'subnet'", str(ctx.exception))
 
-  def test_resolve_gce_instances_empty_raises_validation_error(self):
-    """Verifies ValidationError when instances input is empty."""
+  def test_resolve_gce_nodes_empty_raises_validation_error(self):
+    """Verifies ValidationError when nodes input is empty."""
     with self.assertRaises(models.ValidationError) as ctx:
-      self.client.resolve_gce_instances(None, "p", "z")
-    self.assertIn("gce_instances in configuration profile is empty", str(ctx.exception))
+      self.client.resolve_gce_nodes(None, "p", "z")
+    self.assertIn("gce_nodes in configuration profile is empty", str(ctx.exception))
 
-  @mock.patch.object(gcp_client.GCPClient, "list_instances")
-  def test_resolve_gce_instances_no_matches_raises_validation_error(
+  @mock.patch.object(gcp_client.GCPClient, "list_nodes")
+  def test_resolve_gce_nodes_no_matches_raises_validation_error(
       self, mock_list
   ):
-    """Verifies ValidationError when filter returns no matching instances."""
+    """Verifies ValidationError when filter returns no matching nodes."""
     mock_list.return_value = []
     with self.assertRaises(models.ValidationError) as ctx:
-      self.client.resolve_gce_instances({"prefix": "non-existent-"}, "p", "z")
-    self.assertIn("No GCE instances found matching filter", str(ctx.exception))
+      self.client.resolve_gce_nodes({"prefix": "non-existent-"}, "p", "z")
+    self.assertIn("No GCE nodes found matching filter", str(ctx.exception))
 
   @mock.patch.dict("os.environ", {"COMPUTE_API_VERSION": "staging_v1"})
   def test_compute_api_version_custom_enabled(self):
@@ -743,6 +743,311 @@ class TestGCPClient(unittest.TestCase):
         with self.assertRaises(models.NonRetryableError) as ctx:
           gcp_client.GCPClient()
         self.assertIn("Failed to hook AuthorizedSession", str(ctx.exception))
+
+  def test_create_offline_depot_subnetwork_exists(self):
+    """Verifies create_offline_depot_subnetwork returns existing subnet link when already present."""
+    mock_subnets = mock.MagicMock()
+    mock_sub = mock.MagicMock()
+    mock_sub.self_link = "projects/p/regions/r/subnetworks/sub-1"
+    mock_subnets.get.return_value = mock_sub
+    self.client._subnets_client = mock_subnets
+
+    res = self.client.create_offline_depot_subnetwork("p", "r", "sub-1", "net-1", "10.0.100.0/29")
+    self.assertEqual(res, "projects/p/regions/r/subnetworks/sub-1")
+    mock_subnets.get.assert_called_once_with(project="p", region="r", subnetwork="sub-1")
+    mock_subnets.insert.assert_not_called()
+
+  @mock.patch("clients.gcp_client.compute_v1")
+  def test_create_offline_depot_subnetwork_creates_when_missing(self, mock_compute):
+    """Verifies create_offline_depot_subnetwork calls insert when subnet does not exist."""
+    mock_subnets = mock.MagicMock()
+    mock_subnets.get.side_effect = Exception("404 Not Found")
+    mock_op = mock.MagicMock()
+    mock_subnets.insert.return_value = mock_op
+    self.client._subnets_client = mock_subnets
+
+    res = self.client.create_offline_depot_subnetwork("p", "r", "sub-1", "net-1", "10.0.100.0/29")
+    self.assertEqual(res, "projects/p/regions/r/subnetworks/sub-1")
+    mock_subnets.insert.assert_called_once()
+    mock_op.result.assert_called_once()
+
+  def test_reserve_psc_internal_ip_exists(self):
+    """Verifies reserve_psc_internal_ip returns existing address when found."""
+    mock_addresses = mock.MagicMock()
+    mock_addr = mock.MagicMock()
+    mock_addr.self_link = "projects/p/regions/r/addresses/addr-1"
+    mock_addr.address = "10.0.100.2"
+    mock_addresses.get.return_value = mock_addr
+    self.client._addresses_client = mock_addresses
+
+    link, ip = self.client.reserve_psc_internal_ip("p", "r", "addr-1", "sub-uri")
+    self.assertEqual(link, "projects/p/regions/r/addresses/addr-1")
+    self.assertEqual(ip, "10.0.100.2")
+    mock_addresses.insert.assert_not_called()
+
+  @mock.patch("clients.gcp_client.compute_v1")
+  def test_reserve_psc_internal_ip_creates_when_missing(self, mock_compute):
+    """Verifies reserve_psc_internal_ip calls insert when address does not exist."""
+    mock_addresses = mock.MagicMock()
+    mock_addr = mock.MagicMock()
+    mock_addr.self_link = "projects/p/regions/r/addresses/addr-1"
+    mock_addr.address = "10.0.100.2"
+    mock_addresses.get.side_effect = [Exception("404 Not Found"), mock_addr]
+    mock_op = mock.MagicMock()
+    mock_addresses.insert.return_value = mock_op
+    self.client._addresses_client = mock_addresses
+
+    link, ip = self.client.reserve_psc_internal_ip("p", "r", "addr-1", "sub-uri")
+    self.assertEqual(link, "projects/p/regions/r/addresses/addr-1")
+    self.assertEqual(ip, "10.0.100.2")
+    mock_addresses.insert.assert_called_once()
+    mock_op.result.assert_called_once()
+
+  def test_create_offline_depot_forwarding_rule_exists(self):
+    """Verifies create_offline_depot_forwarding_rule returns existing rule self_link."""
+    mock_fw = mock.MagicMock()
+    mock_rule = mock.MagicMock()
+    mock_rule.self_link = "projects/p/regions/r/forwardingRules/ep-1"
+    mock_fw.get.return_value = mock_rule
+    self.client._fw_rules_client = mock_fw
+
+    res = self.client.create_offline_depot_forwarding_rule(
+        "p", "r", "ep-1", "net-1", "sub-uri", "addr-link", "svc-uri"
+    )
+    self.assertEqual(res, "projects/p/regions/r/forwardingRules/ep-1")
+    mock_fw.insert.assert_not_called()
+
+  @mock.patch("clients.gcp_client.compute_v1")
+  def test_create_offline_depot_forwarding_rule_creates_when_missing(self, mock_compute):
+    """Verifies create_offline_depot_forwarding_rule calls insert when forwarding rule does not exist."""
+    mock_fw = mock.MagicMock()
+    mock_fw.get.side_effect = Exception("404 Not Found")
+    mock_op = mock.MagicMock()
+    mock_fw.insert.return_value = mock_op
+    self.client._fw_rules_client = mock_fw
+
+    res = self.client.create_offline_depot_forwarding_rule(
+        "p", "r", "ep-1", "net-1", "sub-uri", "addr-link", "svc-uri"
+    )
+    self.assertEqual(res, "projects/p/regions/r/forwardingRules/ep-1")
+    mock_fw.insert.assert_called_once()
+    mock_op.result.assert_called_once()
+
+  def test_create_offline_depot_private_dns_zone_and_record_creates_zone_and_record(self):
+    """Verifies creating a new private DNS zone and adding an A record."""
+    mock_google = mock.MagicMock()
+    mock_auth = mock.MagicMock()
+    mock_auth.default.return_value = (mock.MagicMock(), "project")
+    mock_auth_module = mock.MagicMock()
+    mock_session = mock.MagicMock()
+    mock_auth_module.AuthorizedSession.return_value = mock_session
+    mock_transport = mock.MagicMock()
+    mock_transport.requests = mock_auth_module
+    mock_google.auth = mock_auth
+
+    # Zone GET returns 404 (needs creation)
+    mock_zone_get_resp = mock.MagicMock()
+    mock_zone_get_resp.status_code = 404
+    mock_zone_get_resp.ok = False
+
+    # Zone POST returns 201
+    mock_zone_post_resp = mock.MagicMock()
+    mock_zone_post_resp.status_code = 201
+    mock_zone_post_resp.ok = True
+
+    # RRset GET returns empty
+    mock_rr_get_resp = mock.MagicMock()
+    mock_rr_get_resp.ok = True
+    mock_rr_get_resp.json.return_value = {"rrsets": []}
+
+    # Change POST returns 200
+    mock_change_resp = mock.MagicMock()
+    mock_change_resp.ok = True
+
+    mock_session.get.side_effect = [mock_zone_get_resp, mock_rr_get_resp]
+    mock_session.post.side_effect = [mock_zone_post_resp, mock_change_resp]
+
+    with mock.patch("clients.gcp_client.google", mock_google):
+      with mock.patch.dict(
+          "sys.modules",
+          {
+              "google": mock_google,
+              "google.auth": mock_auth,
+              "google.auth.transport": mock_transport,
+              "google.auth.transport.requests": mock_auth_module,
+          },
+      ):
+        self.client.create_offline_depot_private_dns_zone_and_record(
+            project="my-p",
+            zone_name="depot-zone",
+            dns_name="us-central1.selfmanagedvmwareengine.goog.",
+            network_uri="projects/my-p/global/networks/my-vpc",
+            a_record_fqdn="offline-depot.us-central1.selfmanagedvmwareengine.goog.",
+            target_ip="10.0.100.5",
+        )
+
+        self.assertEqual(mock_session.post.call_count, 2)
+        create_zone_payload = mock_session.post.call_args_list[0][1]["json"]
+        self.assertEqual(create_zone_payload["name"], "depot-zone")
+        self.assertEqual(create_zone_payload["visibility"], "private")
+
+        change_payload = mock_session.post.call_args_list[1][1]["json"]
+        self.assertEqual(
+            change_payload["additions"][0]["name"],
+            "offline-depot.us-central1.selfmanagedvmwareengine.goog.",
+        )
+        self.assertEqual(change_payload["additions"][0]["rrdatas"], ["10.0.100.5"])
+
+
+  def test_dns_api_version_prod_default(self):
+    """Verifies default environment uses dns.googleapis.com, v1 for DNS, and v1 for network URL."""
+    client = gcp_client.GCPClient()
+    self.assertEqual(client.get_dns_host(), "dns.googleapis.com")
+    self.assertEqual(client.get_dns_api_version(), "v1")
+    self.assertEqual(client.get_dns_compute_network_version(), "v1")
+
+  @mock.patch.dict("os.environ", {"COMPUTE_API_VERSION": "alpha"})
+  def test_dns_api_version_prod_alpha(self):
+    """Verifies prod alpha compute version still uses dns.googleapis.com and v1 for DNS and network URL."""
+    client = gcp_client.GCPClient()
+    self.assertEqual(client.get_dns_host(), "dns.googleapis.com")
+    self.assertEqual(client.get_dns_api_version(), "v1")
+    self.assertEqual(client.get_dns_compute_network_version(), "v1")
+
+  @mock.patch.dict("os.environ", {"COMPUTE_API_VERSION": "beta"})
+  def test_dns_api_version_prod_beta(self):
+    """Verifies prod beta compute version still uses dns.googleapis.com and v1 for DNS and network URL."""
+    client = gcp_client.GCPClient()
+    self.assertEqual(client.get_dns_host(), "dns.googleapis.com")
+    self.assertEqual(client.get_dns_api_version(), "v1")
+    self.assertEqual(client.get_dns_compute_network_version(), "v1")
+
+  @mock.patch.dict("os.environ", {"COMPUTE_API_VERSION": "staging_v1"})
+  def test_dns_api_version_staging_v1(self):
+    """Verifies staging_v1 compute version uses staging-dns.sandbox.googleapis.com, v1 for DNS, and staging_v1 for network URL."""
+    client = gcp_client.GCPClient()
+    self.assertEqual(client.get_dns_host(), "staging-dns.sandbox.googleapis.com")
+    self.assertEqual(client.get_dns_api_version(), "v1")
+    self.assertEqual(client.get_dns_compute_network_version(), "staging_v1")
+
+  @mock.patch.dict("os.environ", {"COMPUTE_API_VERSION": "staging_alpha"})
+  def test_dns_api_version_staging_alpha(self):
+    """Verifies staging_alpha compute version uses staging-dns.sandbox.googleapis.com, v1 for DNS, and staging_v1 for network URL."""
+    client = gcp_client.GCPClient()
+    self.assertEqual(client.get_dns_host(), "staging-dns.sandbox.googleapis.com")
+    self.assertEqual(client.get_dns_api_version(), "v1")
+    self.assertEqual(client.get_dns_compute_network_version(), "staging_v1")
+
+  @mock.patch.dict("os.environ", {"OFFLINE_DEPOT_ENV": "staging"}, clear=True)
+  def test_dns_api_version_offline_depot_env_ignored(self):
+    """Verifies that OFFLINE_DEPOT_ENV is ignored and DNS API versions rely strictly on compute API version."""
+    client = gcp_client.GCPClient()
+    self.assertEqual(client.get_dns_host(), "dns.googleapis.com")
+    self.assertEqual(client.get_dns_api_version(), "v1")
+    self.assertEqual(client.get_dns_compute_network_version(), "v1")
+
+  @mock.patch.dict("os.environ", {"COMPUTE_API_VERSION": "staging_v1"})
+  def test_create_offline_depot_private_dns_zone_and_record_staging(self):
+    """Verifies creating DNS zone and record in staging uses staging DNS host and staging_v1 compute URLs."""
+    mock_google = mock.MagicMock()
+    mock_auth = mock.MagicMock()
+    mock_auth.default.return_value = (mock.MagicMock(), "project")
+    mock_auth_module = mock.MagicMock()
+    mock_session = mock.MagicMock()
+    mock_auth_module.AuthorizedSession.return_value = mock_session
+    mock_transport = mock.MagicMock()
+    mock_transport.requests = mock_auth_module
+    mock_google.auth = mock_auth
+
+    mock_zone_get_resp = mock.MagicMock()
+    mock_zone_get_resp.status_code = 404
+    mock_zone_get_resp.ok = False
+
+    mock_zone_post_resp = mock.MagicMock()
+    mock_zone_post_resp.status_code = 201
+    mock_zone_post_resp.ok = True
+
+    mock_rr_get_resp = mock.MagicMock()
+    mock_rr_get_resp.ok = True
+    mock_rr_get_resp.json.return_value = {"rrsets": []}
+
+    mock_change_resp = mock.MagicMock()
+    mock_change_resp.ok = True
+
+    mock_session.get.side_effect = [mock_zone_get_resp, mock_rr_get_resp]
+    mock_session.post.side_effect = [mock_zone_post_resp, mock_change_resp]
+
+    with mock.patch("clients.gcp_client.google", mock_google):
+      with mock.patch.dict(
+          "sys.modules",
+          {
+              "google": mock_google,
+              "google.auth": mock_auth,
+              "google.auth.transport": mock_transport,
+              "google.auth.transport.requests": mock_auth_module,
+          },
+      ):
+        client = gcp_client.GCPClient()
+        client.create_offline_depot_private_dns_zone_and_record(
+            project="my-p",
+            zone_name="depot-zone",
+            dns_name="us-central1.staging.smve-vcf.internal.",
+            network_uri="projects/my-p/global/networks/my-vpc",
+            a_record_fqdn="offline-depot.us-central1.staging.smve-vcf.internal.",
+            target_ip="10.0.100.5",
+        )
+
+        get_zone_url = mock_session.get.call_args_list[0][0][0]
+        self.assertIn("staging-dns.sandbox.googleapis.com/dns/v1/", get_zone_url)
+
+        create_zone_call = mock_session.post.call_args_list[0]
+        self.assertIn("staging-dns.sandbox.googleapis.com/dns/v1/", create_zone_call[0][0])
+        create_payload = create_zone_call[1]["json"]
+        self.assertEqual(
+            create_payload["privateVisibilityConfig"]["networks"][0]["networkUrl"],
+            "https://www.googleapis.com/compute/staging_v1/projects/my-p/global/networks/my-vpc",
+        )
+
+  @mock.patch.dict("os.environ", {"COMPUTE_API_VERSION": "staging_v1"})
+  def test_install_api_version_rewriter_dns_staging(self):
+    """Verifies that _install_api_version_rewriter redirects dns.googleapis.com to staging host."""
+    mock_auth_module = mock.MagicMock()
+    mock_auth_sess_class = mock.MagicMock()
+    mock_auth_module.AuthorizedSession = mock_auth_sess_class
+    orig_mock = mock.MagicMock(return_value="auth_resp")
+    mock_auth_sess_class.request = orig_mock
+
+    mock_google = mock.MagicMock()
+    mock_auth = mock.MagicMock()
+    mock_transport = mock.MagicMock()
+    mock_transport.requests = mock_auth_module
+
+    with mock.patch("clients.gcp_client.google", mock_google):
+      with mock.patch.dict(
+          "sys.modules",
+          {
+              "google": mock_google,
+              "google.auth": mock_auth,
+              "google.auth.transport": mock_transport,
+              "google.auth.transport.requests": mock_auth_module,
+          },
+      ):
+        client = gcp_client.GCPClient()
+        client._install_api_version_rewriter()
+
+        hooked_func = mock_auth_sess_class.request
+        mock_instance = mock.MagicMock()
+        res = hooked_func(
+            mock_instance,
+            "GET",
+            "https://dns.googleapis.com/dns/v1/projects/p/managedZones",
+        )
+        self.assertEqual(res, "auth_resp")
+        orig_mock.assert_called_once_with(
+            mock_instance,
+            "GET",
+            "https://staging-dns.sandbox.googleapis.com/dns/v1/projects/p/managedZones",
+        )
 
 
 if __name__ == "__main__":

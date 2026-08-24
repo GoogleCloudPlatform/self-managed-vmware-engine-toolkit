@@ -26,35 +26,37 @@ class TestModels(unittest.TestCase):
   def test_vcf_deployment_config_instantiation(self):
     """Verifies VCFDeploymentConfig dataclass field assignment."""
     vcf_cfg = models.VCFDeploymentConfig(
-        target_gce_instance="esxi-1",
+        target_gce_node="esxi-1",
         vcf_appliance_root_password_secret="vcf-root",
         vcf_appliance_local_user_password_secret="vcf-local",
         vcf_installer_fqdn="sddc-manager.lab.local",
         vcf_installer_ip_source="vcf-ip",
+        offline_depot_subnet_cidr="10.0.100.0/29",
     )
-    self.assertEqual(vcf_cfg.target_gce_instance, "esxi-1")
+    self.assertEqual(vcf_cfg.target_gce_node, "esxi-1")
     self.assertEqual(vcf_cfg.vcf_installer_fqdn, "sddc-manager.lab.local")
     self.assertEqual(vcf_cfg.vcf_installer_ip_source, "vcf-ip")
+    self.assertEqual(vcf_cfg.offline_depot_subnet_cidr, "10.0.100.0/29")
 
   def test_deployer_config_instantiation_and_helpers(self):
     """Verifies master DeployerConfig dataclass, region property, and path helpers."""
     cfg = models.DeployerConfig(
         project="p-123",
         zone="us-central1-a",
-        gce_instances=["esxi-1"],
+        gce_nodes=["esxi-1"],
         esxi_root_password_secret="esxi-root",
     )
-    self.assertEqual(len(cfg.gce_instances), 1)
+    self.assertEqual(len(cfg.gce_nodes), 1)
     self.assertEqual(cfg.region, "us-central1")
     self.assertIsNone(cfg.vcf_deployment_config)
 
     # Path helper tests
     self.assertEqual(
-        cfg.get_full_instance_path("esxi-1"),
+        cfg.get_full_node_path("esxi-1"),
         "projects/p-123/zones/us-central1-a/instances/esxi-1",
     )
     self.assertEqual(
-        cfg.get_full_instance_path("projects/other/zones/z/instances/esxi-2"),
+        cfg.get_full_node_path("projects/other/zones/z/instances/esxi-2"),
         "projects/other/zones/z/instances/esxi-2",
     )
     self.assertEqual(
@@ -69,13 +71,14 @@ class TestModels(unittest.TestCase):
   def test_validation_context_immutability(self):
     """Verifies ValidationContext frozen dataclass immutability."""
     ctx = models.ValidationContext(
-        esxi_instances={},
+        esxi_nodes={},
         new_esxi_root_password="NewP@ssword123!",
         target_esxi_ip="10.0.0.5",
         vcf_installer_ip="10.0.0.50",
     )
     self.assertEqual(ctx.target_esxi_ip, "10.0.0.5")
     self.assertEqual(ctx.vcf_installer_ip, "10.0.0.50")
+    self.assertEqual(ctx.esxi_nodes, {})
     # Dataclass is frozen; setting attribute should raise FrozenInstanceError
     with self.assertRaises(AttributeError):
       ctx.target_esxi_ip = "10.0.0.6"  # type: ignore

@@ -1,0 +1,19 @@
+{
+  "project": "my-gcp-project",
+  "zone": "us-central1-a",
+  "gce_nodes": [
+    "esxi-node-0",
+    "esxi-node-1"
+  ],
+  "esxi_root_password_secret": "esxi-root-password-secret",
+  "vcf_deployment_config": {
+    "target_gce_node": "esxi-node-0",
+    "offline_depot_subnet_cidr": "10.0.100.0/29",
+    "vcf_appliance_root_password_secret": "vcf-appliance-root-password-secret",
+    "vcf_appliance_local_user_password_secret": "vcf-appliance-local-password-secret",
+    "vcf_installer_ip_source": {
+      "reserved_address": "vcf-installer-ip-address"
+    },
+    "vcf_installer_fqdn": "vcf-installer.example.internal"
+  }
+}

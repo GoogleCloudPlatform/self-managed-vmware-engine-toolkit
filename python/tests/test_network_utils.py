@@ -130,6 +130,32 @@ class TestNetworkUtils(unittest.TestCase):
       network_utils.capture_ssl_thumbprint("https://unreachable.depot.com")
     self.assertIn("Failed to connect", str(ctx.exception))
 
+  def test_validate_subnet_cidr_size_valid(self):
+    """Verifies valid CIDRs with prefix length <= 29 pass validation."""
+    network_utils.validate_subnet_cidr_size("10.0.100.0/29")
+    network_utils.validate_subnet_cidr_size("10.0.0.0/24")
+    network_utils.validate_subnet_cidr_size("172.16.0.0/16")
+
+  def test_validate_subnet_cidr_size_too_small_raises_validation_error(self):
+    """Verifies ValidationError when prefix length > 29 (/30, /31, /32)."""
+    with self.assertRaises(models.ValidationError) as ctx:
+      network_utils.validate_subnet_cidr_size("10.0.100.0/30")
+    self.assertIn("is too small", str(ctx.exception))
+
+    with self.assertRaises(models.ValidationError) as ctx:
+      network_utils.validate_subnet_cidr_size("10.0.100.0/32")
+    self.assertIn("is too small", str(ctx.exception))
+
+  def test_validate_subnet_cidr_size_invalid_format_raises_validation_error(self):
+    """Verifies ValidationError on empty or malformed CIDR."""
+    with self.assertRaises(models.ValidationError) as ctx:
+      network_utils.validate_subnet_cidr_size("")
+    self.assertIn("missing or empty", str(ctx.exception))
+
+    with self.assertRaises(models.ValidationError) as ctx:
+      network_utils.validate_subnet_cidr_size("not-a-cidr")
+    self.assertIn("Invalid subnet CIDR format", str(ctx.exception))
+
 
 if __name__ == "__main__":
   unittest.main()

@@ -15,9 +15,9 @@ class TestPreDeploymentValidator(unittest.TestCase):
     super().setUp()
     self.mock_gcp = mock.MagicMock()
     self.mock_config = mock.MagicMock()
-    self.mock_config.gce_instances = []
-    self.mock_gcp.resolve_gce_instances.side_effect = (
-        lambda insts, project=None, zone=None: gcp_client.GCPClient.resolve_gce_instances(
+    self.mock_config.gce_nodes = []
+    self.mock_gcp.resolve_gce_nodes.side_effect = (
+        lambda insts, project=None, zone=None: gcp_client.GCPClient.resolve_gce_nodes(
             self.mock_gcp, insts, project or "p", zone or "z"
         )
     )
@@ -25,20 +25,20 @@ class TestPreDeploymentValidator(unittest.TestCase):
         config=self.mock_config, gcp=self.mock_gcp
     )
 
-  def test_validate_gce_instances_empty_list_raises_validation_error(self):
-    """Verifies ValidationError when gce_instances is empty."""
-    self.mock_config.gce_instances = []
+  def test_validate_gce_nodes_empty_list_raises_validation_error(self):
+    """Verifies ValidationError when gce_nodes is empty."""
+    self.mock_config.gce_nodes = []
     with self.assertRaises(models.ValidationError) as ctx:
-      self.validator._validate_gce_instances()
+      self.validator._validate_gce_nodes()
     self.assertIn(
-        "gce_instances in configuration profile is empty",
+        "gce_nodes in configuration profile is empty",
         str(ctx.exception),
     )
 
-  def test_validate_gce_instances_invalid_ip_raises_validation_error(self):
-    """Verifies ValidationError when GCE instance returns an invalid primary IP."""
-    self.mock_config.gce_instances = ["esxi-1"]
-    self.mock_config.get_full_instance_path.return_value = (
+  def test_validate_gce_nodes_invalid_ip_raises_validation_error(self):
+    """Verifies ValidationError when GCE node returns an invalid primary IP."""
+    self.mock_config.gce_nodes = ["esxi-1"]
+    self.mock_config.get_full_node_path.return_value = (
         "projects/p/zones/z/instances/esxi-1"
     )
     mock_details = mock.MagicMock()
@@ -46,13 +46,13 @@ class TestPreDeploymentValidator(unittest.TestCase):
     self.mock_gcp.get_instance_details.return_value = mock_details
 
     with self.assertRaises(models.ValidationError) as ctx:
-      self.validator._validate_gce_instances()
+      self.validator._validate_gce_nodes()
     self.assertIn("returned malformed IPv4 address", str(ctx.exception))
 
-  def test_validate_gce_instances_valid(self):
+  def test_validate_gce_nodes_valid(self):
     """Verifies single-pass inspection and boot image validation for all inventory nodes."""
-    self.mock_config.gce_instances = ["esxi-1"]
-    self.mock_config.get_full_instance_path.return_value = (
+    self.mock_config.gce_nodes = ["esxi-1"]
+    self.mock_config.get_full_node_path.return_value = (
         "projects/p/zones/z/instances/esxi-1"
     )
     mock_details = models.GCEInstanceDetails(
@@ -68,7 +68,7 @@ class TestPreDeploymentValidator(unittest.TestCase):
     )
     self.mock_gcp.get_instance_details.return_value = mock_details
 
-    details_map = self.validator._validate_gce_instances()
+    details_map = self.validator._validate_gce_nodes()
     self.assertEqual(len(details_map), 1)
     self.assertIn("projects/p/zones/z/instances/esxi-1", details_map)
     self.assertEqual(
@@ -81,11 +81,12 @@ class TestPreDeploymentValidator(unittest.TestCase):
     self.mock_config.esxi_root_password_secret = "esxi-root"
     self.mock_config.get_full_secret_path.side_effect = lambda s: f"secrets/{s}"
     self.mock_config.vcf_deployment_config = models.VCFDeploymentConfig(
-        target_gce_instance="esxi-1",
+        target_gce_node="esxi-1",
         vcf_appliance_root_password_secret="vcf-root",
         vcf_appliance_local_user_password_secret="vcf-local",
         vcf_installer_fqdn="sddc-manager.lab.local",
         vcf_installer_ip_source="10.0.0.50",
+        offline_depot_subnet_cidr="10.0.100.0/29",
     )
 
     self.mock_gcp.get_secret_payload.side_effect = [
@@ -99,7 +100,7 @@ class TestPreDeploymentValidator(unittest.TestCase):
     self.assertEqual(vcf_root, "ComplexVCF_Root_P@ssword123")
     self.assertEqual(vcf_local, "ComplexVCF_Local_P@ss123")
 
-  def test_govern_gce_instance_tags_patches_missing_tags_and_labels(self):
+  def test_govern_gce_node_tags_patches_missing_tags_and_labels(self):
     """Verifies set_instance_tags and set_instance_labels when mandatory tags/labels are missing."""
     mock_details = models.GCEInstanceDetails(
         instance_resource_string="projects/p/zones/z/instances/esxi-1",
@@ -116,7 +117,7 @@ class TestPreDeploymentValidator(unittest.TestCase):
     )
     details_map = {"esxi-1": mock_details}
 
-    self.validator._govern_gce_instance_tags(details_map)
+    self.validator._govern_gce_node_tags(details_map)
 
     self.mock_gcp.set_instance_tags.assert_called_once_with(
         project="p",
@@ -133,10 +134,10 @@ class TestPreDeploymentValidator(unittest.TestCase):
         label_fingerprint="fp_label",
     )
 
-  def test_validate_gce_instances_multiple_parallel(self):
-    """Verifies parallel inspection of multiple GCE instances preserving order."""
-    self.mock_config.gce_instances = ["esxi-1", "esxi-2", "esxi-3"]
-    self.mock_config.get_full_instance_path.side_effect = (
+  def test_validate_gce_nodes_multiple_parallel(self):
+    """Verifies parallel inspection of multiple GCE nodes preserving order."""
+    self.mock_config.gce_nodes = ["esxi-1", "esxi-2", "esxi-3"]
+    self.mock_config.get_full_node_path.side_effect = (
         lambda s: f"projects/p/zones/z/instances/{s}"
     )
 
@@ -156,7 +157,7 @@ class TestPreDeploymentValidator(unittest.TestCase):
 
     self.mock_gcp.get_instance_details.side_effect = get_details_side_effect
 
-    details_map = self.validator._validate_gce_instances()
+    details_map = self.validator._validate_gce_nodes()
     self.assertEqual(len(details_map), 3)
     self.assertIn("projects/p/zones/z/instances/esxi-1", details_map)
     self.assertIn("projects/p/zones/z/instances/esxi-2", details_map)
@@ -166,8 +167,8 @@ class TestPreDeploymentValidator(unittest.TestCase):
         "10.0.0.2",
     )
 
-  def test_govern_gce_instance_tags_multiple_parallel(self):
-    """Verifies parallel governance of tags/labels across multiple instances."""
+  def test_govern_gce_node_tags_multiple_parallel(self):
+    """Verifies parallel governance of tags/labels across multiple nodes."""
     details_map = {
         f"esxi-{i}": models.GCEInstanceDetails(
             instance_resource_string=f"projects/p/zones/z/instances/esxi-{i}",
@@ -185,20 +186,20 @@ class TestPreDeploymentValidator(unittest.TestCase):
         for i in range(1, 4)
     }
 
-    self.validator._govern_gce_instance_tags(details_map)
+    self.validator._govern_gce_node_tags(details_map)
     self.assertEqual(self.mock_gcp.set_instance_tags.call_count, 3)
     self.assertEqual(self.mock_gcp.set_instance_labels.call_count, 3)
 
-  def test_validate_gce_instances_with_prefix_dict(self):
-    """Verifies instance resolution when gce_instances is a dict with prefix."""
-    self.mock_gcp.resolve_gce_instances.side_effect = None
-    self.mock_config.gce_instances = {"prefix": "esxi-"}
+  def test_validate_gce_nodes_with_prefix_dict(self):
+    """Verifies node resolution when gce_nodes is a dict with prefix."""
+    self.mock_gcp.resolve_gce_nodes.side_effect = None
+    self.mock_config.gce_nodes = {"prefix": "esxi-"}
     self.mock_config.project = "p"
     self.mock_config.zone = "z"
-    self.mock_config.get_full_instance_path.return_value = (
+    self.mock_config.get_full_node_path.return_value = (
         "projects/p/zones/z/instances/esxi-1"
     )
-    self.mock_gcp.resolve_gce_instances.return_value = ["esxi-1"]
+    self.mock_gcp.resolve_gce_nodes.return_value = ["esxi-1"]
 
     mock_details = models.GCEInstanceDetails(
         instance_resource_string="projects/p/zones/z/instances/esxi-1",
@@ -213,22 +214,22 @@ class TestPreDeploymentValidator(unittest.TestCase):
     )
     self.mock_gcp.get_instance_details.return_value = mock_details
 
-    details_map = self.validator._validate_gce_instances()
+    details_map = self.validator._validate_gce_nodes()
     self.assertEqual(len(details_map), 1)
-    self.mock_gcp.resolve_gce_instances.assert_called_once_with(
+    self.mock_gcp.resolve_gce_nodes.assert_called_once_with(
         {"prefix": "esxi-"}, project="p", zone="z"
     )
 
-  def test_validate_gce_instances_with_subnet_dict(self):
-    """Verifies instance resolution when gce_instances is a dict with subnet."""
-    self.mock_gcp.resolve_gce_instances.side_effect = None
-    self.mock_config.gce_instances = {"subnet": "my-subnet"}
+  def test_validate_gce_nodes_with_subnet_dict(self):
+    """Verifies node resolution when gce_nodes is a dict with subnet."""
+    self.mock_gcp.resolve_gce_nodes.side_effect = None
+    self.mock_config.gce_nodes = {"subnet": "my-subnet"}
     self.mock_config.project = "p"
     self.mock_config.zone = "z"
-    self.mock_config.get_full_instance_path.return_value = (
+    self.mock_config.get_full_node_path.return_value = (
         "projects/p/zones/z/instances/esxi-1"
     )
-    self.mock_gcp.resolve_gce_instances.return_value = ["esxi-1"]
+    self.mock_gcp.resolve_gce_nodes.return_value = ["esxi-1"]
 
     mock_details = models.GCEInstanceDetails(
         instance_resource_string="projects/p/zones/z/instances/esxi-1",
@@ -243,19 +244,19 @@ class TestPreDeploymentValidator(unittest.TestCase):
     )
     self.mock_gcp.get_instance_details.return_value = mock_details
 
-  def test_validate_gce_instances_with_both_prefix_and_subnet_dict(self):
-    """Verifies instance resolution when gce_instances is a dict with both prefix and subnet."""
-    self.mock_gcp.resolve_gce_instances.side_effect = None
-    self.mock_config.gce_instances = {
+  def test_validate_gce_nodes_with_both_prefix_and_subnet_dict(self):
+    """Verifies node resolution when gce_nodes is a dict with both prefix and subnet."""
+    self.mock_gcp.resolve_gce_nodes.side_effect = None
+    self.mock_config.gce_nodes = {
         "prefix": "esxi-",
         "subnet": "my-subnet",
     }
     self.mock_config.project = "p"
     self.mock_config.zone = "z"
-    self.mock_config.get_full_instance_path.return_value = (
+    self.mock_config.get_full_node_path.return_value = (
         "projects/p/zones/z/instances/esxi-1"
     )
-    self.mock_gcp.resolve_gce_instances.return_value = ["esxi-1"]
+    self.mock_gcp.resolve_gce_nodes.return_value = ["esxi-1"]
 
     mock_details = models.GCEInstanceDetails(
         instance_resource_string="projects/p/zones/z/instances/esxi-1",
@@ -270,15 +271,15 @@ class TestPreDeploymentValidator(unittest.TestCase):
     )
     self.mock_gcp.get_instance_details.return_value = mock_details
 
-    details_map = self.validator._validate_gce_instances()
+    details_map = self.validator._validate_gce_nodes()
     self.assertEqual(len(details_map), 1)
-    self.mock_gcp.resolve_gce_instances.assert_called_once_with(
+    self.mock_gcp.resolve_gce_nodes.assert_called_once_with(
         {"prefix": "esxi-", "subnet": "my-subnet"}, project="p", zone="z"
     )
 
   def test_validate_and_extract_no_vcf_config(self):
     """Verifies Phase 1 completion and context generation when VCF deployment config is omitted."""
-    self.mock_config.gce_instances = [
+    self.mock_config.gce_nodes = [
         "projects/p/zones/z/instances/esxi-1"
     ]
     self.mock_config.prefix = None
@@ -392,29 +393,31 @@ class TestPreDeploymentValidator(unittest.TestCase):
         str(ctx.exception),
     )
 
+  @mock.patch("vcf_deployer.offline_depot_infra.OfflineDepotInfraManager")
   @mock.patch("utils.network_utils.capture_ssl_thumbprint")
   @mock.patch("utils.network_utils.extract_vlan_cidr_and_routing")
   @mock.patch.object(validator.PreDeploymentValidator, "_derive_vcf_ova_url")
   def test_validate_and_extract_full_vcf_flow(
-      self, mock_derive_url, mock_extract_vlan, mock_capture_thumbprint
+      self, mock_derive_url, mock_extract_vlan, mock_capture_thumbprint, mock_infra_mgr_cls
   ):
     """Verifies full Phase 1 validation and ValidationContext generation for VCF deployment."""
-    self.mock_config.gce_instances = ["esxi-1"]
+    self.mock_config.gce_nodes = ["esxi-1"]
     self.mock_config.project = "p"
     self.mock_config.zone = "z"
     self.mock_config.region = "z"
-    self.mock_config.get_full_instance_path.side_effect = (
+    self.mock_config.get_full_node_path.side_effect = (
         lambda inst: inst
         if inst.startswith("projects/")
         else f"projects/p/zones/z/instances/{inst}"
     )
     self.mock_config.get_full_secret_path.side_effect = lambda s: f"secrets/{s}"
     vcf_cfg = models.VCFDeploymentConfig(
-        target_gce_instance="esxi-1",
+        target_gce_node="esxi-1",
         vcf_appliance_root_password_secret="vcf-root",
         vcf_appliance_local_user_password_secret="vcf-local",
         vcf_installer_fqdn="sddc-manager.lab.local",
         vcf_installer_ip_source={"forwarding_rule": "fr-1"},
+        offline_depot_subnet_cidr="10.0.100.0/29",
     )
     self.mock_config.vcf_deployment_config = vcf_cfg
     self.mock_config.esxi_root_password_secret = "esxi-root"
@@ -426,7 +429,14 @@ class TestPreDeploymentValidator(unittest.TestCase):
         zone="z",
         primary_ip="10.0.0.5",
         boot_image_name="esxi-5-1-1-12345",
-        subnetworks=[],
+        subnetworks=[
+            models.SubnetworkInfo(
+                subnetwork_uri="projects/p/regions/z/subnetworks/sub-1",
+                vlan_id=0,
+                network_uri="projects/p/global/networks/vpc-1",
+                cidr="10.0.0.0/24",
+            )
+        ],
         tags=["mm-gcve-node"],
         tags_fingerprint="fp_tag",
         labels={"gcve-node": "true"},
@@ -438,8 +448,13 @@ class TestPreDeploymentValidator(unittest.TestCase):
         "ComplexVCF_Root_P@ssword123",
         "ComplexVCF_Local_P@ss123",
     ]
+    mock_infra_mgr_cls.return_value.setup_offline_depot_infrastructure.return_value = {
+        "psc_ip": "10.0.100.2",
+        "fqdn": "offline-depot.z.selfmanagedvmwareengine.goog.",
+        "subnet_uri": "projects/p/regions/z/subnetworks/sub-1",
+    }
     self.mock_gcp.resolve_ip_source.return_value = "10.0.0.50"
-    mock_derive_url.return_value = "https://depot/vcf.ova"
+    mock_derive_url.return_value = "https://10.0.100.2/vcf.ova"
     mock_extract_vlan.return_value = (
         100,
         "10.0.0.0/24",
@@ -452,7 +467,7 @@ class TestPreDeploymentValidator(unittest.TestCase):
 
     self.assertEqual(ctx.target_esxi_ip, "10.0.0.5")
     self.assertEqual(ctx.vcf_installer_ip, "10.0.0.50")
-    self.assertEqual(ctx.vcf_installer_ova_url, "https://depot/vcf.ova")
+    self.assertEqual(ctx.vcf_installer_ova_url, "https://10.0.100.2/vcf.ova")
     self.assertEqual(ctx.vlan_id, 100)
     self.assertEqual(ctx.sddc_manager_netmask, "255.255.255.0")
     self.assertEqual(ctx.sddc_manager_gateway, "10.0.0.1")
@@ -463,22 +478,23 @@ class TestPreDeploymentValidator(unittest.TestCase):
   def test_validate_and_extract_target_instance_missing_raises_validation_error(
       self,
   ):
-    """Verifies ValidationError when target_gce_instance is not in gce_instances."""
-    self.mock_config.gce_instances = ["esxi-1"]
+    """Verifies ValidationError when target_gce_node is not in gce_nodes."""
+    self.mock_config.gce_nodes = ["esxi-1"]
     self.mock_config.project = "p"
     self.mock_config.zone = "z"
-    self.mock_config.get_full_instance_path.side_effect = (
+    self.mock_config.get_full_node_path.side_effect = (
         lambda inst: inst
         if inst.startswith("projects/")
         else f"projects/p/zones/z/instances/{inst}"
     )
     self.mock_config.get_full_secret_path.side_effect = lambda s: f"secrets/{s}"
     vcf_cfg = models.VCFDeploymentConfig(
-        target_gce_instance="non-existent",
+        target_gce_node="non-existent",
         vcf_appliance_root_password_secret="vcf-root",
         vcf_appliance_local_user_password_secret="vcf-local",
         vcf_installer_fqdn="sddc-manager.lab.local",
         vcf_installer_ip_source={"forwarding_rule": "fr-1"},
+        offline_depot_subnet_cidr="10.0.100.0/29",
     )
     self.mock_config.vcf_deployment_config = vcf_cfg
     self.mock_config.esxi_root_password_secret = "esxi-root"
@@ -505,7 +521,7 @@ class TestPreDeploymentValidator(unittest.TestCase):
 
     with self.assertRaises(models.ValidationError) as ctx:
       self.validator.validate_and_extract()
-    self.assertIn("Designated target_gce_instance", str(ctx.exception))
+    self.assertIn("Designated target_gce_node", str(ctx.exception))
 
   @mock.patch("urllib.request.urlopen")
   @mock.patch.dict("os.environ", {"OFFLINE_DEPOT_ENV": "staging"})
@@ -567,6 +583,43 @@ class TestPreDeploymentValidator(unittest.TestCase):
     self.assertEqual(
         url,
         "https://offline-depot.us-central1.autopush.smve-vcf.internal/PROD/COMP/SDDC_MANAGER_VCF/VCF-SDDC-Manager-Appliance-5.1.1.1234.ova",
+    )
+
+  @mock.patch("urllib.request.urlopen")
+  def test_derive_vcf_ova_url_with_psc_ip(self, mock_urlopen):
+    """Verifies that _derive_vcf_ova_url uses PSC IP in URL when provided."""
+    mock_resp = mock.MagicMock()
+    mock_resp.read.return_value = (
+        b'<html><a href="VCF-SDDC-Manager-Appliance-5.1.1.1234.ova">link</a></html>'
+    )
+    mock_resp.__enter__.return_value = mock_resp
+    mock_urlopen.return_value = mock_resp
+
+    target_details = models.GCEInstanceDetails(
+        instance_resource_string="projects/p/zones/us-central1-a/instances/esxi-1",
+        short_name="esxi-1",
+        project="p",
+        zone="us-central1-a",
+        primary_ip="10.0.0.5",
+        boot_image_name="esxi-5-1-1-12345",
+        subnetworks=[],
+        tags=[],
+        tags_fingerprint="",
+        labels={},
+        label_fingerprint="",
+    )
+
+    url = self.validator._derive_vcf_ova_url(
+        target_details, depot_host_or_ip="10.0.100.2"
+    )
+    self.assertEqual(
+        url,
+        "https://10.0.100.2/PROD/COMP/SDDC_MANAGER_VCF/VCF-SDDC-Manager-Appliance-5.1.1.1234.ova",
+    )
+    req = mock_urlopen.call_args[0][0]
+    self.assertEqual(
+        req.headers.get("Host"),
+        "offline-depot.us-central1.selfmanagedvmwareengine.goog",
     )
 
 

@@ -157,3 +157,30 @@ def capture_ssl_thumbprint(target_url: str) -> str:
         f"Failed to connect to '{hostname}:443' to capture SSL SHA-256"
         f" thumbprint: {exc}"
     ) from exc
+
+
+def validate_subnet_cidr_size(cidr: str) -> None:
+  """Validates CIDR format and enforces minimum standard GCP subnet size of /29 (4 usable IPs).
+
+  Args:
+      cidr: IPv4 CIDR range string (e.g. '10.0.100.0/29').
+
+  Raises:
+      models.ValidationError: If CIDR syntax is invalid or prefix length > 29.
+  """
+  if not cidr or not isinstance(cidr, str):
+    raise models.ValidationError("Subnet CIDR is missing or empty!")
+
+  try:
+    network = ipaddress.IPv4Network(cidr.strip(), strict=False)
+  except ValueError as exc:
+    raise models.ValidationError(
+        f"Invalid subnet CIDR format '{cidr}': {exc}"
+    ) from exc
+
+  if network.prefixlen > constants.OfflineDepotDefaults.MAX_SUBNET_PREFIX_LEN:
+    raise models.ValidationError(
+        f"Subnet CIDR '{cidr}' (/{network.prefixlen}) is too small! "
+        "Google Cloud standard subnets require a minimum size of /29 (8 total IPs, 4 usable)."
+    )
+

@@ -253,3 +253,55 @@ def select_optimal_ova_object(
       f"No VCF installer OVA files found in bucket '{bucket}' matching prefix"
       f" '{prefix}'"
   )
+
+
+def get_active_env() -> str:
+  """Returns normalized active environment (prod, staging, autopush)."""
+  return os.environ.get(
+      constants.ValidationRules.OFFLINE_DEPOT_ENV_VAR,
+      constants.ValidationRules.DEFAULT_OFFLINE_DEPOT_ENV,
+  ).strip().lower()
+
+
+def get_depot_host_template() -> str:
+  """Returns the regional depot host template for the active environment."""
+  env = get_active_env()
+  return constants.ValidationRules.DEPOT_HOST_TEMPLATES.get(
+      env, constants.ValidationRules.DEPOT_HOST_TEMPLATE
+  )
+
+
+def get_base_domain(region: str) -> str:
+  """Returns the regional private DNS base domain for the active environment."""
+  env = get_active_env()
+  template = constants.OfflineDepotDefaults.BASE_DOMAIN_TEMPLATES.get(
+      env, constants.OfflineDepotDefaults.BASE_DOMAIN_TEMPLATES["prod"]
+  )
+  return template.format(region=region)
+
+
+def get_host_fqdn(region: str) -> str:
+  """Returns the fully qualified domain name with trailing dot for the A-record."""
+  env = get_active_env()
+  template = constants.ValidationRules.DEPOT_HOST_TEMPLATES.get(
+      env, constants.ValidationRules.DEPOT_HOST_TEMPLATE
+  )
+  host = template.format(region=region)
+  return host if host.endswith(".") else f"{host}."
+
+
+def get_service_attachment_uri(region: str) -> str:
+  """Returns the regional Service Attachment URI for the active environment."""
+  env = get_active_env()
+  template = constants.OfflineDepotDefaults.SERVICE_ATTACHMENT_TEMPLATES.get(
+      env, constants.OfflineDepotDefaults.SERVICE_ATTACHMENT_TEMPLATES["prod"]
+  )
+  return template.format(region=region)
+
+
+def get_dns_zone_name(region: str) -> str:
+  """Returns the managed DNS zone resource name for the active environment."""
+  env = get_active_env()
+  return constants.OfflineDepotDefaults.DNS_ZONE_NAME_TEMPLATE.format(
+      region=region, env=env
+  )

@@ -97,7 +97,7 @@ class TestPasswordResetter(unittest.TestCase):
   def test_reset_esxi_inventory_passwords_empty_context(self):
     """Verifies skipping password reset gracefully when ValidationContext has no hosts."""
     ctx = models.ValidationContext(
-        esxi_instances={},
+        esxi_nodes={},
         new_esxi_root_password="NewP@ssword123!",
     )
     # Should not raise exception
@@ -131,7 +131,7 @@ class TestPasswordResetter(unittest.TestCase):
         tags_fingerprint="",
     )
     ctx = models.ValidationContext(
-        esxi_instances={"esxi-1": details_1, "esxi-2": details_2},
+        esxi_nodes={"esxi-1": details_1, "esxi-2": details_2},
         new_esxi_root_password="NewRootP@ss123!",
     )
 
