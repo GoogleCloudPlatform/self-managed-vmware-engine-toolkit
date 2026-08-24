@@ -45,9 +45,9 @@ class PreDeploymentValidator:
   def validate_and_extract(self) -> models.ValidationContext:
     """Master execution routine for Phase 1 pre-deployment validation.
 
-    Performs a single inspection call per GCE instance during initial checks,
+    Performs a single inspection call per GCE node during initial checks,
     extracts and audits Secret Manager passwords via string utilities,
-    governs instance tags, infers VCF OVA download paths from boot disk images,
+    governs node tags, infers VCF OVA download paths from boot disk images,
     and performs unified VLAN/CIDR routing deduction via network utilities.
 
     Returns:
@@ -58,40 +58,40 @@ class PreDeploymentValidator:
     """
     logger.info("Initiating Phase 1: Pre-Deployment Validation & Extraction...")
 
-    # 1. Single-pass inspection of GCE instances during initial check
-    esxi_details_map = self._validate_gce_instances()
+    # 1. Single-pass inspection of GCE nodes during initial check
+    esxi_details_map = self._validate_gce_nodes()
 
     # 2. Extract and audit required secret payloads from Secret Manager
     root_pass, vcf_root, vcf_local = self._extract_and_audit_secrets()
 
-    # 3. Govern mandatory compute instance tags utilizing cached properties
-    self._govern_gce_instance_tags(esxi_details_map)
+    # 3. Govern mandatory compute node tags utilizing cached properties
+    self._govern_gce_node_tags(esxi_details_map)
 
     # If optional VCF deployment profile is missing, skip VCF-specific checks
     vcf_cfg = self.config.vcf_deployment_config
     if not vcf_cfg:
       logger.info("No vcf_deployment_config provided; skipping VCF checks.")
       return models.ValidationContext(
-          esxi_instances=esxi_details_map,
+          esxi_nodes=esxi_details_map,
           new_esxi_root_password=root_pass,
       )
 
     # 4. Target ESXi host lookup from cache
-    target_full_path = self.config.get_full_instance_path(
-        vcf_cfg.target_gce_instance
+    target_full_path = self.config.get_full_node_path(
+        vcf_cfg.target_gce_node
     )
     clean_target_path = string_utils.clean_gcp_uri(target_full_path)
     target_details = esxi_details_map.get(clean_target_path)
     if not target_details:
       raise models.ValidationError(
-          f"Designated target_gce_instance '{vcf_cfg.target_gce_instance}' not"
-          " found in gce_instances or missing valid internal IP."
+          f"Designated target_gce_node '{vcf_cfg.target_gce_node}' not"
+          " found in gce_nodes or missing valid internal IP."
       )
 
     # 4b. Provision / Verify Offline Depot Subnet, PSC Endpoint & Private DNS
     if not target_details.subnetworks:
       raise models.ValidationError(
-          f"Target instance '{target_details.instance_resource_string}' has no attached subnetworks to determine VPC network."
+          f"Target node '{target_details.instance_resource_string}' has no attached subnetworks to determine VPC network."
       )
     discovered_vpc = target_details.subnetworks[0].network_uri
     infra_mgr = offline_depot_infra.OfflineDepotInfraManager(
@@ -144,7 +144,7 @@ class PreDeploymentValidator:
         cidr,
     )
     return models.ValidationContext(
-        esxi_instances=esxi_details_map,
+        esxi_nodes=esxi_details_map,
         new_esxi_root_password=root_pass,
         target_esxi_ip=target_details.primary_ip,
         vcf_installer_ip=vcf_ip,
@@ -161,58 +161,58 @@ class PreDeploymentValidator:
         vcf_appliance_local_password=vcf_local,
     )
 
-  def _inspect_single_instance(
-      self, inst_input: str
+  def _inspect_single_node(
+      self, node_input: str
   ) -> Tuple[str, models.GCEInstanceDetails]:
-    """Inspects and validates a single GCE instance."""
-    full_inst_path = self.config.get_full_instance_path(inst_input)
-    details = self.gcp.get_instance_details(full_inst_path)
+    """Inspects and validates a single GCE node."""
+    full_node_path = self.config.get_full_node_path(node_input)
+    details = self.gcp.get_instance_details(full_node_path)
     try:
       ipaddress.IPv4Address(details.primary_ip)
     except ValueError as exc:
       raise models.ValidationError(
-          f"Instance '{inst_input}' returned malformed IPv4 address"
+          f"Node '{node_input}' returned malformed IPv4 address"
           f" '{details.primary_ip}': {exc}"
       ) from exc
 
     string_utils.parse_vcf_version_from_image(details.boot_image_name)
 
-    clean_key = string_utils.clean_gcp_uri(full_inst_path)
+    clean_key = string_utils.clean_gcp_uri(full_node_path)
     logger.info(
-        "Validated GCE instance '%s' (IP: %s, Subnets: %d, Image: %s)",
-        full_inst_path,
+        "Validated GCE node '%s' (IP: %s, Subnets: %d, Image: %s)",
+        full_node_path,
         details.primary_ip,
         len(details.subnetworks),
         details.boot_image_name,
     )
     return clean_key, details
 
-  def _validate_gce_instances(self) -> Dict[str, models.GCEInstanceDetails]:
-    """Executes single-pass inspection of all configured GCE instances in parallel.
+  def _validate_gce_nodes(self) -> Dict[str, models.GCEInstanceDetails]:
+    """Executes single-pass inspection of all configured GCE nodes in parallel.
 
     Returns:
-        Dictionary mapping instance resource strings to cached
+        Dictionary mapping node resource strings to cached
         GCEInstanceDetails.
     """
-    logger.info("Performing single-pass initial inspection of GCE instances...")
-    instances_list = self.gcp.resolve_gce_instances(
-        self.config.gce_instances,
+    logger.info("Performing single-pass initial inspection of GCE nodes...")
+    nodes_list = self.gcp.resolve_gce_nodes(
+        self.config.gce_nodes,
         project=self.config.project,
         zone=self.config.zone,
     )
 
-    if not instances_list:
+    if not nodes_list:
       raise models.ValidationError(
-          "gce_instances in configuration profile is empty!"
+          "gce_nodes in configuration profile is empty!"
       )
 
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=min(
             constants.ValidationRules.MAX_INSPECTION_WORKERS,
-            len(instances_list),
+            len(nodes_list),
         )
     ) as executor:
-      return dict(executor.map(self._inspect_single_instance, instances_list))
+      return dict(executor.map(self._inspect_single_node, nodes_list))
 
   def _extract_and_audit_secrets(
       self,
@@ -267,10 +267,10 @@ class PreDeploymentValidator:
     logger.info("Secret Manager payloads successfully validated and audited.")
     return esxi_root, vcf_root, vcf_local
 
-  def _govern_single_instance_tags(
+  def _govern_single_node_tags(
       self, details: models.GCEInstanceDetails
   ) -> None:
-    """Inspects and applies required tags and labels to a single instance."""
+    """Inspects and applies required tags and labels to a single node."""
     required_tags = set(constants.ValidationRules.REQUIRED_GCE_TAGS)
     required_labels = dict(constants.ValidationRules.REQUIRED_GCE_LABELS)
 
@@ -288,11 +288,11 @@ class PreDeploymentValidator:
       details.tags = new_tags
     else:
       logger.info(
-          "Instance '%s' already contains required tags; skipping tag patch.",
+          "Node '%s' already contains required tags; skipping tag patch.",
           details.instance_resource_string,
       )
 
-    # 2. Govern instance labels
+    # 2. Govern node labels
     missing_labels = {
         k: v for k, v in required_labels.items() if details.labels.get(k) != v
     }
@@ -309,33 +309,33 @@ class PreDeploymentValidator:
       details.labels = new_labels
     else:
       logger.info(
-          "Instance '%s' already contains required labels; skipping label"
+          "Node '%s' already contains required labels; skipping label"
           " patch.",
           details.instance_resource_string,
       )
 
-  def _govern_gce_instance_tags(
+  def _govern_gce_node_tags(
       self, details_map: Dict[str, models.GCEInstanceDetails]
   ) -> None:
-    """Inspects cached GCE instance tags and labels, applying mandatory entries if missing in parallel.
+    """Inspects cached GCE node tags and labels, applying mandatory entries if missing in parallel.
 
     Args:
         details_map: Cached map of GCEInstanceDetails from initial inspection.
     """
     logger.info(
-        "Governing GCE instance networking tags and labels across inventory..."
+        "Governing GCE node networking tags and labels across inventory..."
     )
     if not details_map:
       return
 
-    instances = list(details_map.values())
+    nodes = list(details_map.values())
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=min(
             constants.ValidationRules.MAX_TAG_GOVERNANCE_WORKERS,
-            len(instances),
+            len(nodes),
         )
     ) as executor:
-      list(executor.map(self._govern_single_instance_tags, instances))
+      list(executor.map(self._govern_single_node_tags, nodes))
 
   def _derive_vcf_ova_url(
       self,

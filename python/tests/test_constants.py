@@ -20,7 +20,7 @@ class TestConstants(unittest.TestCase):
     """Verifies top-level configuration keys and mandatory subset."""
     self.assertEqual(constants.ConfigKeys.PROJECT, "project")
     self.assertEqual(constants.ConfigKeys.ZONE, "zone")
-    self.assertEqual(constants.ConfigKeys.GCE_INSTANCES, "gce_instances")
+    self.assertEqual(constants.ConfigKeys.GCE_NODES, "gce_nodes")
     self.assertEqual(
         constants.ConfigKeys.ESXI_ROOT_PASSWORD_SECRET,
         "esxi_root_password_secret",
@@ -34,7 +34,7 @@ class TestConstants(unittest.TestCase):
     for key in (
         constants.ConfigKeys.PROJECT,
         constants.ConfigKeys.ZONE,
-        constants.ConfigKeys.GCE_INSTANCES,
+        constants.ConfigKeys.GCE_NODES,
         constants.ConfigKeys.ESXI_ROOT_PASSWORD_SECRET,
     ):
       self.assertIn(key, constants.ConfigKeys.REQUIRED_KEYS)
@@ -42,7 +42,7 @@ class TestConstants(unittest.TestCase):
   def test_vcf_config_keys_structure(self):
     """Verifies VCF deployment configuration keys and mandatory subset."""
     self.assertEqual(
-        constants.VCFConfigKeys.TARGET_GCE_INSTANCE, "target_gce_instance"
+        constants.VCFConfigKeys.TARGET_GCE_NODE, "target_gce_node"
     )
     self.assertEqual(
         constants.VCFConfigKeys.VCF_APPLIANCE_ROOT_PASSWORD_SECRET,
@@ -65,7 +65,7 @@ class TestConstants(unittest.TestCase):
     )
 
     for key in (
-        constants.VCFConfigKeys.TARGET_GCE_INSTANCE,
+        constants.VCFConfigKeys.TARGET_GCE_NODE,
         constants.VCFConfigKeys.VCF_APPLIANCE_ROOT_PASSWORD_SECRET,
         constants.VCFConfigKeys.VCF_APPLIANCE_LOCAL_USER_PASSWORD_SECRET,
         constants.VCFConfigKeys.VCF_INSTALLER_FQDN,

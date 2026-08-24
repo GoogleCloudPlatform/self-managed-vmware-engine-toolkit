@@ -71,10 +71,10 @@ class TestMain(unittest.TestCase):
     valid_data = {
         "project": "p",
         "zone": "z",
-        "gce_instances": ["esxi-1"],
+        "gce_nodes": ["esxi-1"],
         "esxi_root_password_secret": "esxi-root",
         "vcf_deployment_config": {
-            "target_gce_instance": "esxi-1",
+            "target_gce_node": "esxi-1",
             "offline_depot_subnet_cidr": "10.0.100.0/29",
             "vcf_appliance_root_password_secret": "vcf-root",
             "vcf_appliance_local_user_password_secret": "vcf-local",
@@ -89,7 +89,7 @@ class TestMain(unittest.TestCase):
     try:
       config = main_mod.load_config(temp_path)
       self.assertIsInstance(config, models.DeployerConfig)
-      self.assertEqual(len(config.gce_instances), 1)
+      self.assertEqual(len(config.gce_nodes), 1)
       self.assertIsNotNone(config.vcf_deployment_config)
       self.assertEqual(
           config.vcf_deployment_config.vcf_installer_fqdn,
@@ -99,11 +99,11 @@ class TestMain(unittest.TestCase):
       os.remove(temp_path)
 
   def test_load_config_with_prefix_dict(self):
-    """Verifies loading config with gce_instances as dict containing prefix."""
+    """Verifies loading config with gce_nodes as dict containing prefix."""
     data = {
         "project": "p",
         "zone": "z",
-        "gce_instances": {"prefix": "esxi-"},
+        "gce_nodes": {"prefix": "esxi-"},
         "esxi_root_password_secret": "esxi-root",
     }
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
@@ -112,16 +112,16 @@ class TestMain(unittest.TestCase):
 
     try:
       config = main_mod.load_config(temp_path)
-      self.assertEqual(config.gce_instances, {"prefix": "esxi-"})
+      self.assertEqual(config.gce_nodes, {"prefix": "esxi-"})
     finally:
       os.remove(temp_path)
 
   def test_load_config_with_subnet_dict(self):
-    """Verifies loading config with gce_instances as dict containing subnet."""
+    """Verifies loading config with gce_nodes as dict containing subnet."""
     data = {
         "project": "p",
         "zone": "z",
-        "gce_instances": {"subnet": "my-subnet"},
+        "gce_nodes": {"subnet": "my-subnet"},
         "esxi_root_password_secret": "esxi-root",
     }
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
@@ -130,16 +130,16 @@ class TestMain(unittest.TestCase):
 
     try:
       config = main_mod.load_config(temp_path)
-      self.assertEqual(config.gce_instances, {"subnet": "my-subnet"})
+      self.assertEqual(config.gce_nodes, {"subnet": "my-subnet"})
     finally:
       os.remove(temp_path)
 
   def test_load_config_with_both_prefix_and_subnet(self):
-    """Verifies loading config with gce_instances dict containing both prefix and subnet."""
+    """Verifies loading config with gce_nodes dict containing both prefix and subnet."""
     data = {
         "project": "p",
         "zone": "z",
-        "gce_instances": {"prefix": "esxi-", "subnet": "my-subnet"},
+        "gce_nodes": {"prefix": "esxi-", "subnet": "my-subnet"},
         "esxi_root_password_secret": "esxi-root",
     }
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
@@ -149,17 +149,17 @@ class TestMain(unittest.TestCase):
     try:
       config = main_mod.load_config(temp_path)
       self.assertEqual(
-          config.gce_instances, {"prefix": "esxi-", "subnet": "my-subnet"}
+          config.gce_nodes, {"prefix": "esxi-", "subnet": "my-subnet"}
       )
     finally:
       os.remove(temp_path)
 
-  def test_load_config_with_empty_gce_instances_dict_raises_validation_error(self):
-    """Verifies ValidationError when gce_instances dict contains neither prefix nor subnet."""
+  def test_load_config_with_empty_gce_nodes_dict_raises_validation_error(self):
+    """Verifies ValidationError when gce_nodes dict contains neither prefix nor subnet."""
     data = {
         "project": "p",
         "zone": "z",
-        "gce_instances": {"invalid": "key"},
+        "gce_nodes": {"invalid": "key"},
         "esxi_root_password_secret": "esxi-root",
     }
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
@@ -186,7 +186,7 @@ class TestMain(unittest.TestCase):
     invalid_data = {
         "project": "p",
         "zone": "z",
-        "gce_instances": [],  # empty
+        "gce_nodes": [],  # empty
         "esxi_root_password_secret": "esxi-root",
     }
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
@@ -197,7 +197,7 @@ class TestMain(unittest.TestCase):
       with self.assertRaises(models.ValidationError) as ctx:
         main_mod.load_config(temp_path)
       self.assertIn(
-          "Mandatory configuration key 'gce_instances'",
+          "Mandatory configuration key 'gce_nodes'",
           str(ctx.exception),
       )
     finally:
@@ -214,7 +214,7 @@ class TestMain(unittest.TestCase):
     mock_cfg = models.DeployerConfig(
         project="p",
         zone="z",
-        gce_instances=["esxi-1"],
+        gce_nodes=["esxi-1"],
         esxi_root_password_secret="esxi-root",
         vcf_deployment_config=None,
     )
@@ -223,7 +223,7 @@ class TestMain(unittest.TestCase):
     mock_val_inst = mock.MagicMock()
     mock_val_cls.return_value = mock_val_inst
     mock_ctx = models.ValidationContext(
-        esxi_instances={},
+        esxi_nodes={},
         new_esxi_root_password="NewP@ssword123!",
     )
     mock_val_inst.validate_and_extract.return_value = mock_ctx
@@ -272,7 +272,7 @@ class TestMain(unittest.TestCase):
   ):
     """Verifies full Phase 1-3 pipeline execution with VCF deployment profile."""
     vcf_cfg = models.VCFDeploymentConfig(
-        target_gce_instance="esxi-1",
+        target_gce_node="esxi-1",
         vcf_appliance_root_password_secret="vcf-root",
         vcf_appliance_local_user_password_secret="vcf-local",
         vcf_installer_fqdn="sddc-manager.lab.local",
@@ -282,14 +282,14 @@ class TestMain(unittest.TestCase):
     mock_cfg = models.DeployerConfig(
         project="p",
         zone="z",
-        gce_instances=["esxi-1"],
+        gce_nodes=["esxi-1"],
         esxi_root_password_secret="esxi-root",
         vcf_deployment_config=vcf_cfg,
     )
     mock_load_cfg.return_value = mock_cfg
 
     mock_ctx = models.ValidationContext(
-        esxi_instances={},
+        esxi_nodes={},
         new_esxi_root_password="NewESXiRoot123!",
         target_esxi_ip="10.0.0.5",
         vcf_installer_ip="10.0.0.50",
@@ -344,10 +344,10 @@ class TestMain(unittest.TestCase):
     invalid_vcf_data = {
         "project": "p",
         "zone": "z",
-        "gce_instances": ["esxi-1"],
+        "gce_nodes": ["esxi-1"],
         "esxi_root_password_secret": "esxi-root",
         "vcf_deployment_config": {
-            "target_gce_instance": "esxi-1",
+            "target_gce_node": "esxi-1",
             # missing required fields
         },
     }
@@ -367,10 +367,10 @@ class TestMain(unittest.TestCase):
     invalid_cidr_data = {
         "project": "p",
         "zone": "z",
-        "gce_instances": ["esxi-1"],
+        "gce_nodes": ["esxi-1"],
         "esxi_root_password_secret": "esxi-root",
         "vcf_deployment_config": {
-            "target_gce_instance": "esxi-1",
+            "target_gce_node": "esxi-1",
             "offline_depot_subnet_cidr": "10.0.100.0/30",
             "vcf_appliance_root_password_secret": "vcf-root",
             "vcf_appliance_local_user_password_secret": "vcf-local",

@@ -58,7 +58,7 @@ class VCFDeploymentConfig:
   mutations and advances directly to Phase 3 password rotation.
   """
 
-  target_gce_instance: str
+  target_gce_node: str
   vcf_appliance_root_password_secret: str
   vcf_appliance_local_user_password_secret: str
   vcf_installer_fqdn: str
@@ -72,7 +72,7 @@ class DeployerConfig:
 
   project: str
   zone: str
-  gce_instances: Any
+  gce_nodes: Any
   esxi_root_password_secret: str
   vcf_deployment_config: Optional[VCFDeploymentConfig] = None
 
@@ -86,13 +86,11 @@ class DeployerConfig:
       return "-".join(self.zone.split("-")[:-1])
     return self.zone
 
-  def get_full_instance_path(self, instance_input: str) -> str:
-    """Constructs full GCE instance resource string if short name provided."""
-    if instance_input.startswith("projects/"):
-      return instance_input
-    return (
-        f"projects/{self.project}/zones/{self.zone}/instances/{instance_input}"
-    )
+  def get_full_node_path(self, node_input: str) -> str:
+    """Constructs full GCE node resource string if short name provided."""
+    if node_input.startswith("projects/"):
+      return node_input
+    return f"projects/{self.project}/zones/{self.zone}/instances/{node_input}"
 
   def get_full_secret_path(self, secret_input: str) -> str:
     """Constructs full Secret Manager resource path if short secret name provided."""
@@ -148,8 +146,8 @@ class ValidationContext:
   sequentially to Phase 2 and Phase 3 modules.
   """
 
-  # Mapping of ESXi GCE instance resource strings to cached GCEInstanceDetails
-  esxi_instances: Dict[str, GCEInstanceDetails]
+  # Mapping of ESXi GCE node resource strings to cached GCEInstanceDetails
+  esxi_nodes: Dict[str, GCEInstanceDetails]
   new_esxi_root_password: str
 
   # Optional fields populated only if vcf_deployment_config was provided

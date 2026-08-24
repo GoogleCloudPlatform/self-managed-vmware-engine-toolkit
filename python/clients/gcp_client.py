@@ -243,33 +243,33 @@ class GCPClient:
       return parts[1], parts[3], parts[5]
     if len(parts) == 1:
       raise models.ValidationError(
-          f"Instance identifier '{resource_str}' must include GCP project and"
+          f"Node identifier '{resource_str}' must include GCP project and"
           " zone (e.g., projects/<project>/zones/<zone>/instances/<name>)."
       )
     raise models.ValidationError(
-        f"Malformed GCE instance resource string: '{resource_str}'"
+        f"Malformed GCE node resource string: '{resource_str}'"
     )
 
-  def list_instances(
+  def list_nodes(
       self,
       project: str,
       zone: str,
       prefix: Optional[str] = None,
       subnet: Optional[str] = None,
   ) -> List[str]:
-    """Lists and filters GCE instances in a project and zone by prefix and/or subnet.
+    """Lists and filters nodes in a project and zone by prefix and/or subnet.
 
     Args:
         project: GCP Project ID.
         zone: Compute Engine availability zone.
-        prefix: Optional name prefix to filter instances.
-        subnet: Optional subnetwork name or URI to filter instances.
+        prefix: Optional name prefix to filter nodes.
+        subnet: Optional subnetwork name or URI to filter nodes.
 
     Returns:
-        List of instance short names matching the filter criteria.
+        List of node short names matching the filter criteria.
     """
     logger.debug(
-        "Listing instances in %s/%s (prefix: %s, subnet: %s)...",
+        "Listing nodes in %s/%s (prefix: %s, subnet: %s)...",
         project,
         zone,
         prefix,
@@ -279,7 +279,7 @@ class GCPClient:
       self._init_compute_client()
     try:
       instances = self._compute_client.list(project=project, zone=zone)
-      matched_instances: List[str] = []
+      matched_nodes: List[str] = []
       for inst in instances:
         name = getattr(inst, "name", "")
         if prefix and not name.startswith(prefix):
@@ -301,92 +301,92 @@ class GCPClient:
               break
           if not in_subnet:
             continue
-        matched_instances.append(name)
+        matched_nodes.append(name)
 
       logger.info(
-          "Discovered %d matching instance(s) in %s/%s for prefix='%s',"
+          "Discovered %d matching node(s) in %s/%s for prefix='%s',"
           " subnet='%s': %s",
-          len(matched_instances),
+          len(matched_nodes),
           project,
           zone,
           prefix,
           subnet,
-          matched_instances,
+          matched_nodes,
       )
-      return matched_instances
+      return matched_nodes
     except Exception as exc:  # pylint: disable=broad-exception-caught
       self._handle_gcp_exception(
-          "Compute List Instances", f"{project}/{zone}", exc
+          "Compute List Nodes", f"{project}/{zone}", exc
       )
       raise
 
-  def resolve_gce_instances(
+  def resolve_gce_nodes(
       self,
-      instances_input: Any,
+      nodes_input: Any,
       project: str,
       zone: str,
   ) -> List[str]:
-    """Resolves list of GCE instances from dynamic instances input.
+    """Resolves list of GCE nodes from dynamic nodes input.
 
     Supports:
-    - List of instance names/URIs: ['esxi-1', 'esxi-2']
+    - List of node names/URIs: ['esxi-1', 'esxi-2']
     - Dict with 'prefix' and/or 'subnet': {'prefix': 'esxi-', 'subnet': 'my-subnet'}
-    - Single instance name string: 'esxi-1'
+    - Single node name string: 'esxi-1'
 
     Args:
-        instances_input: List of instance names or dict containing 'prefix'
-          and/or 'subnet'.
+        nodes_input: List of node names or dict containing 'prefix' and/or
+          'subnet'.
         project: GCP Project ID.
         zone: Compute Engine availability zone.
 
     Returns:
-        List of resolved instance short names.
+        List of resolved node short names.
 
     Raises:
         models.ValidationError: If input format is invalid or returns no
-          matching instances.
+          matching nodes.
     """
-    if not instances_input:
+    if not nodes_input:
       raise models.ValidationError(
-          "gce_instances in configuration profile is empty!"
+          "gce_nodes in configuration profile is empty!"
       )
 
-    if isinstance(instances_input, list):
-      return list(instances_input)
+    if isinstance(nodes_input, list):
+      return list(nodes_input)
 
-    if isinstance(instances_input, dict):
+    if isinstance(nodes_input, dict):
       prefix = (
-          str(instances_input["prefix"]).strip()
-          if "prefix" in instances_input and instances_input["prefix"]
+          str(nodes_input["prefix"]).strip()
+          if "prefix" in nodes_input and nodes_input["prefix"]
           else None
       )
       subnet = (
-          str(instances_input["subnet"]).strip()
-          if "subnet" in instances_input and instances_input["subnet"]
+          str(nodes_input["subnet"]).strip()
+          if "subnet" in nodes_input and nodes_input["subnet"]
           else None
       )
       if not (prefix or subnet):
         raise models.ValidationError(
-            "gce_instances dictionary must contain 'prefix' and/or 'subnet' key"
+            "gce_nodes dictionary must contain 'prefix' and/or 'subnet' key"
             " with non-empty values."
         )
 
-      instances = self.list_instances(
+      nodes = self.list_nodes(
           project=project, zone=zone, prefix=prefix, subnet=subnet
       )
 
-      if not instances:
+      if not nodes:
         raise models.ValidationError(
-            f"No GCE instances found matching filter '{instances_input}' in"
+            f"No GCE nodes found matching filter '{nodes_input}' in"
             f" {project}/{zone}."
         )
-      return instances
+      return nodes
 
-    if isinstance(instances_input, str):
-      return [instances_input.strip()]
+    if isinstance(nodes_input, str):
+      return [nodes_input.strip()]
 
     raise models.ValidationError(
-        f"Invalid gce_instances '{instances_input}': must be a list of instance"
+        f"Invalid gce_nodes '{nodes_input}': must be a list of node"
         " names or a dictionary containing 'prefix' or 'subnet'."
     )
 

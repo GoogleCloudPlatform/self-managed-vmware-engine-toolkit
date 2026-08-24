@@ -117,13 +117,13 @@ class PasswordResetter:
     logger.info(
         "Phase 3: Initiating inventory root password reset across hosts..."
     )
-    if not context.esxi_instances:
+    if not context.esxi_nodes:
       logger.warning(
           "No ESXi host mappings found in ValidationContext; skipping."
       )
       return
 
-    hosts = list(context.esxi_instances.values())
+    hosts = list(context.esxi_nodes.values())
     new_password = context.new_esxi_root_password
     total_hosts = len(hosts)
     total_batches = (total_hosts + batch_size - 1) // batch_size

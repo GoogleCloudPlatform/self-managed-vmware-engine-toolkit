@@ -148,30 +148,30 @@ def load_config(config_file_path: str) -> models.DeployerConfig:
           f"Mandatory configuration key '{key}' is missing or empty in profile."
       )
 
-  gce_inst_input = data[constants.ConfigKeys.GCE_INSTANCES]
-  if isinstance(gce_inst_input, dict):
-    has_prefix = constants.ConfigKeys.PREFIX in gce_inst_input and bool(
-        gce_inst_input[constants.ConfigKeys.PREFIX]
+  gce_node_input = data[constants.ConfigKeys.GCE_NODES]
+  if isinstance(gce_node_input, dict):
+    has_prefix = constants.ConfigKeys.PREFIX in gce_node_input and bool(
+        gce_node_input[constants.ConfigKeys.PREFIX]
     )
-    has_subnet = constants.ConfigKeys.SUBNET in gce_inst_input and bool(
-        gce_inst_input[constants.ConfigKeys.SUBNET]
+    has_subnet = constants.ConfigKeys.SUBNET in gce_node_input and bool(
+        gce_node_input[constants.ConfigKeys.SUBNET]
     )
     if not (has_prefix or has_subnet):
       raise models.ValidationError(
-          f"'{constants.ConfigKeys.GCE_INSTANCES}' dictionary must contain"
+          f"'{constants.ConfigKeys.GCE_NODES}' dictionary must contain"
           f" '{constants.ConfigKeys.PREFIX}' and/or"
           f" '{constants.ConfigKeys.SUBNET}' key with non-empty values."
       )
-  elif isinstance(gce_inst_input, list):
-    if not gce_inst_input:
+  elif isinstance(gce_node_input, list):
+    if not gce_node_input:
       raise models.ValidationError(
-          f"Mandatory configuration key '{constants.ConfigKeys.GCE_INSTANCES}'"
+          f"Mandatory configuration key '{constants.ConfigKeys.GCE_NODES}'"
           " is missing or empty in profile."
       )
-  elif not isinstance(gce_inst_input, str):
+  elif not isinstance(gce_node_input, str):
     raise models.ValidationError(
-        f"Invalid {constants.ConfigKeys.GCE_INSTANCES}: must be a list of"
-        " instance names or a dictionary containing"
+        f"Invalid {constants.ConfigKeys.GCE_NODES}: must be a list of"
+        " node names or a dictionary containing"
         f" '{constants.ConfigKeys.PREFIX}' and/or"
         f" '{constants.ConfigKeys.SUBNET}'."
     )
@@ -192,8 +192,8 @@ def load_config(config_file_path: str) -> models.DeployerConfig:
     network_utils.validate_subnet_cidr_size(cidr)
 
     vcf_cfg = models.VCFDeploymentConfig(
-        target_gce_instance=vcf_data[
-            constants.VCFConfigKeys.TARGET_GCE_INSTANCE
+        target_gce_node=vcf_data[
+            constants.VCFConfigKeys.TARGET_GCE_NODE
         ],
         vcf_appliance_root_password_secret=vcf_data[
             constants.VCFConfigKeys.VCF_APPLIANCE_ROOT_PASSWORD_SECRET
@@ -213,7 +213,7 @@ def load_config(config_file_path: str) -> models.DeployerConfig:
   config = models.DeployerConfig(
       project=data[constants.ConfigKeys.PROJECT],
       zone=data[constants.ConfigKeys.ZONE],
-      gce_instances=data[constants.ConfigKeys.GCE_INSTANCES],
+      gce_nodes=data[constants.ConfigKeys.GCE_NODES],
       esxi_root_password_secret=data[
           constants.ConfigKeys.ESXI_ROOT_PASSWORD_SECRET
       ],
@@ -221,7 +221,7 @@ def load_config(config_file_path: str) -> models.DeployerConfig:
   )
   logger.debug(
       "Successfully loaded configuration profile for %s in %s/%s.",
-      config.gce_instances,
+      config.gce_nodes,
       config.project,
       config.zone,
   )

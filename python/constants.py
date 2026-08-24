@@ -23,7 +23,7 @@ class ConfigKeys:
 
   PROJECT = "project"
   ZONE = "zone"
-  GCE_INSTANCES = "gce_instances"
+  GCE_NODES = "gce_nodes"
   ESXI_ROOT_PASSWORD_SECRET = "esxi_root_password_secret"
   PREFIX = "prefix"
   SUBNET = "subnet"
@@ -32,7 +32,7 @@ class ConfigKeys:
   REQUIRED_KEYS: Tuple[str, ...] = (
       PROJECT,
       ZONE,
-      GCE_INSTANCES,
+      GCE_NODES,
       ESXI_ROOT_PASSWORD_SECRET,
   )
 
@@ -40,7 +40,7 @@ class ConfigKeys:
 class VCFConfigKeys:
   """Keys for optional Phase 2 VCF deployment configuration block."""
 
-  TARGET_GCE_INSTANCE = "target_gce_instance"
+  TARGET_GCE_NODE = "target_gce_node"
   VCF_APPLIANCE_ROOT_PASSWORD_SECRET = "vcf_appliance_root_password_secret"
   VCF_APPLIANCE_LOCAL_USER_PASSWORD_SECRET = (
       "vcf_appliance_local_user_password_secret"
@@ -52,7 +52,7 @@ class VCFConfigKeys:
   RESERVED_ADDRESS = "reserved_address"
 
   REQUIRED_KEYS: Tuple[str, ...] = (
-      TARGET_GCE_INSTANCE,
+      TARGET_GCE_NODE,
       VCF_APPLIANCE_ROOT_PASSWORD_SECRET,
       VCF_APPLIANCE_LOCAL_USER_PASSWORD_SECRET,
       VCF_INSTALLER_FQDN,
