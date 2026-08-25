@@ -22,6 +22,11 @@ output "node_self_links" {
   description = "List of self links for the provisioned bare-metal ESXi instances"
 }
 
+output "node_boot_disk_self_links" {
+  value       = google_compute_disk.boot_disks[*].self_link
+  description = "List of self links for the provisioned bare-metal ESXi boot disks"
+}
+
 output "node_mgmt_ips" {
   value       = google_compute_instance.nodes[*].network_interface[0].network_ip
   description = "List of Management NIC IP addresses assigned to ESXi hosts"
