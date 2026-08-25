@@ -37,6 +37,17 @@ variable "resource_name_prefix" {
   description = "Global prefix prepended to all generated GCP resource names."
 }
 
+variable "deployment_mode" {
+  type        = string
+  default     = "cluster_creation"
+  description = "Execution deployment mode: 'cluster_creation' (default, attaches instances to NEGs via Terraform), 'node_addition' (adds nodes and generates NEG attachment commands), or 'appliance_addition' (adds appliances)."
+
+  validation {
+    condition     = contains(["cluster_creation", "node_addition", "appliance_addition"], var.deployment_mode)
+    error_message = "deployment_mode must be one of: 'cluster_creation', 'node_addition', 'appliance_addition'."
+  }
+}
+
 # ==============================================================================
 # 2. VPC Module Configuration (modules/vpc)
 # ==============================================================================

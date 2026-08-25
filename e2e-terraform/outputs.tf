@@ -224,3 +224,12 @@ output "python_scripts_input_config" {
   }
   description = "Input configuration schema and populated values for Python post-deployment automation scripts"
 }
+
+# ==============================================================================
+# 5. NEG ATTACHMENT COMMANDS & STATUS
+# ==============================================================================
+
+output "neg_attachment_commands" {
+  value       = module.hosts.neg_attachment_commands
+  description = "gcloud CLI commands to attach newly added ESXi host instances to Management and NSX NEGs in 'node_addition' mode, or confirmation that NEGs are already attached in 'cluster_creation' and 'appliance_addition' modes"
+}

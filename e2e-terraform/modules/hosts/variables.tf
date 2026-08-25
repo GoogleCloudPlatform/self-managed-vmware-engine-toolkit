@@ -33,6 +33,17 @@ variable "resource_name_prefix" {
   description = "Global prefix prepended to all generated resource names."
 }
 
+variable "deployment_mode" {
+  type        = string
+  default     = "cluster_creation"
+  description = "Execution deployment mode: 'cluster_creation' (default), 'node_addition', or 'appliance_addition'."
+
+  validation {
+    condition     = contains(["cluster_creation", "node_addition", "appliance_addition"], var.deployment_mode)
+    error_message = "deployment_mode must be one of: 'cluster_creation', 'node_addition', 'appliance_addition'."
+  }
+}
+
 # ------------------------------------------------------------------------------
 # Bare-Metal ESXi Compute Hosts
 # ------------------------------------------------------------------------------
