@@ -57,6 +57,7 @@ zone = "us-east4-b"
 # Valid Values: Lowercase alphanumeric string with hyphens (e.g., "vcf-data01-sample", "vcf-data02").
 # Default Value: "myvcf" (Optional)
 resource_name_prefix = "vcf-data01-sample"
+deployment_mode      = "cluster_creation"
 
 # Description: Execution deployment mode determining the provisioning lifecycle phase:
 #   - "cluster_creation": Day-0/Day-1 initial data cluster provisioning; creates subnets, NEGs, bare-metal nodes, and attaches instances to NEGs via Terraform.
