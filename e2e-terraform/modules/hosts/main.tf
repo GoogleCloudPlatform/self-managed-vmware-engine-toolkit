@@ -297,10 +297,10 @@ resource "google_compute_instance" "nodes" {
 # 4. Attach Instances to Network Endpoint Groups (NEGs)
 # ==============================================================================
 
-# Attach host instances to Management NEG (batch resource for all nodes)
+# Attach host instances to Management NEG (batch resource for all nodes - only in cluster_creation mode)
 resource "google_compute_network_endpoints" "mgmt_endpoints" {
   provider               = google.alpha
-  count                  = (var.mgmt_neg_name != null && var.mgmt_neg_name != "") ? 1 : 0
+  count                  = (var.deployment_mode == "cluster_creation" && var.mgmt_neg_name != null && var.mgmt_neg_name != "") ? 1 : 0
   project                = var.project_id
   network_endpoint_group = var.mgmt_neg_name
   zone                   = var.zone
@@ -314,10 +314,10 @@ resource "google_compute_network_endpoints" "mgmt_endpoints" {
   }
 }
 
-# Attach host instances to NSX TEP NEG (batch resource for all nodes)
+# Attach host instances to NSX TEP NEG (batch resource for all nodes - only in cluster_creation mode)
 resource "google_compute_network_endpoints" "nsx_endpoints" {
   provider               = google.alpha
-  count                  = (var.nsx_neg_name != null && var.nsx_neg_name != "") ? 1 : 0
+  count                  = (var.deployment_mode == "cluster_creation" && var.nsx_neg_name != null && var.nsx_neg_name != "") ? 1 : 0
   project                = var.project_id
   network_endpoint_group = var.nsx_neg_name
   zone                   = var.zone

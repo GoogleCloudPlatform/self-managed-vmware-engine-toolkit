@@ -13,6 +13,7 @@ project_id           = "vmwareengine-bm-autopush-10"
 region               = "us-east4"
 zone                 = "us-east4-b"
 resource_name_prefix = "vcf-data01-sample"
+deployment_mode      = "cluster_creation"
 
 # ==============================================================================
 # 2. VPC NETWORK, FIREWALLS & SHARED CLOUD DNS CONFIGURATION

@@ -21,6 +21,9 @@ zone = "us-east4-b"
 # Unique prefix prepended to all resources created for this cluster.
 resource_name_prefix = "vcf-mgmt-sample"
 
+# Deployment Mode: "cluster_creation" (default), "node_addition", or "appliance_addition"
+deployment_mode = "cluster_creation"
+
 # ==============================================================================
 # 2. VPC NETWORK, FIREWALLS & CLOUD DNS CONFIGURATION
 # ==============================================================================

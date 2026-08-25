@@ -112,3 +112,31 @@ output "host_dns_reverse_ptr_records" {
   value       = [for r in google_dns_record_set.node_reverse_ptr_records : r.name]
   description = "List of created reverse PTR record names for ESXi hosts"
 }
+
+output "neg_attachment_commands" {
+  value = var.deployment_mode == "node_addition" ? {
+    mgmt_neg = (var.mgmt_neg_name != null && var.mgmt_neg_name != "") ? format(
+      "gcloud compute network-endpoint-groups update %s --zone=%s --project=%s %s",
+      var.mgmt_neg_name,
+      var.zone,
+      var.project_id,
+      join(" ", [for node in local.effective_node_names : "--add-endpoint=instance=${node}"])
+    ) : "No Management NEG configured."
+    nsx_neg = (var.nsx_neg_name != null && var.nsx_neg_name != "") ? format(
+      "gcloud compute network-endpoint-groups update %s --zone=%s --project=%s %s",
+      var.nsx_neg_name,
+      var.zone,
+      var.project_id,
+      join(" ", [for node in local.effective_node_names : "--add-endpoint=instance=${node}"])
+    ) : "No NSX NEG configured."
+    } : (
+    var.deployment_mode == "cluster_creation" ? {
+      mgmt_neg = "NEGs are already attached automatically during cluster_creation mode."
+      nsx_neg  = "NEGs are already attached automatically during cluster_creation mode."
+      } : {
+      mgmt_neg = "NEGs are already attached to existing cluster nodes; not applicable for appliance_addition mode."
+      nsx_neg  = "NEGs are already attached to existing cluster nodes; not applicable for appliance_addition mode."
+    }
+  )
+  description = "gcloud CLI commands to attach newly added ESXi host instances to Management and NSX NEGs in 'node_addition' mode, or confirmation that NEGs are already attached in 'cluster_creation' and 'appliance_addition' modes"
+}
