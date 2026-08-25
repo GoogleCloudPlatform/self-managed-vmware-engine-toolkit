@@ -187,8 +187,26 @@ module "dynamic_nic_ip_allocators" {
 }
 
 # ==============================================================================
-# 3. GCE Bare Metal Node Instances
+# 3. GCE Bare Metal Node Disks & Instances
 # ==============================================================================
+
+resource "google_compute_disk" "boot_disks" {
+  count   = var.number_of_nodes
+  project = var.project_id
+  name    = "${local.effective_node_names[count.index]}-boot-disk"
+  zone    = var.zone
+  image   = var.esxi_image
+  type    = "hyperdisk-balanced"
+  size    = 128
+
+  guest_os_features {
+    type = "IDPF"
+  }
+
+  labels = {
+    gcve-node = "true"
+  }
+}
 
 resource "google_compute_instance" "nodes" {
   count               = var.number_of_nodes
@@ -210,10 +228,7 @@ resource "google_compute_instance" "nodes" {
   }
 
   boot_disk {
-    initialize_params {
-      # Full ESXi image resource URI referencing a valid ESXi image
-      image = var.esxi_image
-    }
+    source = google_compute_disk.boot_disks[count.index].self_link
   }
 
   service_account {
