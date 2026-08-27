@@ -37,6 +37,10 @@ locals {
       )
     )
   ]
+
+  entity_ip_map = {
+    for i, name in var.entities : name => local.ip_addresses[i]
+  }
 }
 
 # ==============================================================================
@@ -44,9 +48,9 @@ locals {
 # ==============================================================================
 
 resource "google_compute_address" "reserved_ip" {
-  count   = local.is_reserved ? local.count : 0
-  project = var.project_id
-  region  = var.region
+  for_each = local.is_reserved ? toset(var.entities) : toset([])
+  project  = var.project_id
+  region   = var.region
 
   # Dynamic resource name generation mechanism using format(template, prefix, entity).
   # Examples:
@@ -60,13 +64,13 @@ resource "google_compute_address" "reserved_ip" {
   #    - resource_name_prefix  = "vcf-mgmt"
   #    - var.entities          = ["sddc-manager", "vcenter"]
   #    => Evaluates to: "vcf-mgmt-sddc-manager-ip", "vcf-mgmt-vcenter-ip"
-  name = format(var.address_name_template, var.resource_name_prefix, var.entities[count.index])
+  name = format(var.address_name_template, var.resource_name_prefix, each.key)
 
   subnetwork   = var.subnetwork
   address_type = var.address_type
   purpose      = var.purpose
 
-  address = local.ip_addresses[count.index]
+  address = local.entity_ip_map[each.key]
 }
 
 # ==============================================================================
