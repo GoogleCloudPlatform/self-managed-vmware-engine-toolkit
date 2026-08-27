@@ -190,16 +190,26 @@ module "dynamic_nic_ip_allocators" {
 # ==============================================================================
 
 resource "google_compute_disk" "boot_disks" {
-  count   = var.number_of_nodes
-  project = var.project_id
-  name    = "${local.effective_node_names[count.index]}-boot-disk"
-  zone    = var.zone
-  image   = var.esxi_image
-  type    = "hyperdisk-balanced"
-  size    = 128
+  count                  = var.number_of_nodes
+  project                = var.project_id
+  name                   = "${local.effective_node_names[count.index]}-boot-disk"
+  zone                   = var.zone
+  image                  = var.esxi_image
+  type                   = "hyperdisk-balanced"
+  size                   = 128
+  provisioned_iops       = 10000 # IOPS (I/O operations per second)
+  provisioned_throughput = 290   # Throughput in MB/s
 
   guest_os_features {
     type = "IDPF"
+  }
+
+  guest_os_features {
+    type = "GVNIC"
+  }
+
+  guest_os_features {
+    type = "MULTI_IP_SUBNET"
   }
 
   labels = {
