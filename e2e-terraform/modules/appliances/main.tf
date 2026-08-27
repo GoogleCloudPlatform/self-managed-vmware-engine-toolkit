@@ -30,11 +30,11 @@ locals {
 
   # All configured appliance IP mappings directly from forwarding rules
   mgmt_appliance_ips = {
-    for idx, name in local.mgmt_appliances : name => google_compute_forwarding_rule.mgmt_forwarding_rules[idx].ip_address
+    for name in local.mgmt_appliances : name => google_compute_forwarding_rule.mgmt_forwarding_rules[name].ip_address
   }
 
   nsx_appliance_ips = {
-    for idx, name in local.nsx_appliances : name => google_compute_forwarding_rule.nsx_forwarding_rules[idx].ip_address
+    for name in local.nsx_appliances : name => google_compute_forwarding_rule.nsx_forwarding_rules[name].ip_address
   }
 
   formatted_domain_name = var.domain_name != null && var.domain_name != "" ? (
@@ -107,9 +107,9 @@ module "nsx_ip_allocator" {
 # ==============================================================================
 
 resource "google_compute_region_backend_service" "mgmt_backends" {
-  count                           = local.mgmt_appliance_count
+  for_each                        = toset(local.mgmt_appliances)
   project                         = var.project_id
-  name                            = "${var.resource_name_prefix}-${local.mgmt_appliances[count.index]}-backend"
+  name                            = "${var.resource_name_prefix}-${each.key}-backend"
   region                          = var.region
   protocol                        = "UNSPECIFIED"
   load_balancing_scheme           = "INTERNAL"
@@ -133,18 +133,18 @@ resource "google_compute_region_backend_service" "mgmt_backends" {
 }
 
 resource "google_compute_forwarding_rule" "mgmt_forwarding_rules" {
-  count                 = local.mgmt_appliance_count
+  for_each              = toset(local.mgmt_appliances)
   project               = var.project_id
-  name                  = "${var.resource_name_prefix}-${local.mgmt_appliances[count.index]}-fr"
+  name                  = "${var.resource_name_prefix}-${each.key}-fr"
   region                = var.region
   load_balancing_scheme = "INTERNAL"
-  backend_service       = google_compute_region_backend_service.mgmt_backends[count.index].self_link
+  backend_service       = google_compute_region_backend_service.mgmt_backends[each.key].self_link
   subnetwork            = var.mgmt_subnet_name
   network               = var.vpc_network
   ip_protocol           = "L3_DEFAULT"
   all_ports             = true
   allow_global_access   = true
-  ip_address            = module.mgmt_ip_allocator.effective_ips[count.index]
+  ip_address            = module.mgmt_ip_allocator.effective_ip_map[each.key]
 }
 
 # ==============================================================================
@@ -152,9 +152,9 @@ resource "google_compute_forwarding_rule" "mgmt_forwarding_rules" {
 # ==============================================================================
 
 resource "google_compute_region_backend_service" "nsx_backends" {
-  count                           = local.nsx_appliance_count
+  for_each                        = toset(local.nsx_appliances)
   project                         = var.project_id
-  name                            = "${var.resource_name_prefix}-${local.nsx_appliances[count.index]}-backend"
+  name                            = "${var.resource_name_prefix}-${each.key}-backend"
   region                          = var.region
   protocol                        = "UNSPECIFIED"
   load_balancing_scheme           = "INTERNAL"
@@ -178,18 +178,18 @@ resource "google_compute_region_backend_service" "nsx_backends" {
 }
 
 resource "google_compute_forwarding_rule" "nsx_forwarding_rules" {
-  count                 = local.nsx_appliance_count
+  for_each              = toset(local.nsx_appliances)
   project               = var.project_id
-  name                  = "${var.resource_name_prefix}-${local.nsx_appliances[count.index]}-fr"
+  name                  = "${var.resource_name_prefix}-${each.key}-fr"
   region                = var.region
   load_balancing_scheme = "INTERNAL"
-  backend_service       = google_compute_region_backend_service.nsx_backends[count.index].self_link
+  backend_service       = google_compute_region_backend_service.nsx_backends[each.key].self_link
   subnetwork            = var.nsx_tep_subnet_name
   network               = var.vpc_network
   ip_protocol           = "L3_DEFAULT"
   all_ports             = true
   allow_global_access   = true
-  ip_address            = module.nsx_ip_allocator.effective_ips[count.index]
+  ip_address            = module.nsx_ip_allocator.effective_ip_map[each.key]
 }
 
 # ==============================================================================
