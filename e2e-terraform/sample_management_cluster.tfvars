@@ -276,8 +276,7 @@ domain_name = "<YOUR_DOMAIN_NAME>"
 node_names = [
   "vcf-mgmt-sample-node-1",
   "vcf-mgmt-sample-node-2",
-  "vcf-mgmt-sample-node-3",
-  "vcf-mgmt-sample-node-4"
+  "vcf-mgmt-sample-node-3"
 ]
 
 # Description: Protects bare-metal host instances from accidental deletion via the GCE API or Terraform destroy operations.
