@@ -22,8 +22,8 @@ terraform {
 
 locals {
   is_reserved_custom    = var.ip_address_type == "reserved_custom"
-  is_reserved_ephemeral = var.ip_address_type == "reserved_ephemeral" || var.ip_address_type == "reserved"
-  is_reserved           = local.is_reserved_custom || local.is_reserved_ephemeral
+  is_reserved_automatic = var.ip_address_type == "reserved_automatic"
+  is_reserved           = local.is_reserved_custom || local.is_reserved_automatic
   is_ephemeral_custom   = var.ip_address_type == "ephemeral_custom"
   count                 = length(var.entities)
 
@@ -44,7 +44,7 @@ locals {
 }
 
 # ==============================================================================
-# 1. Static Internal IP Reservation (When mode is 'reserved_custom' or 'reserved_ephemeral')
+# 1. Static Internal IP Reservation (When mode is 'reserved_custom' or 'reserved_automatic')
 # ==============================================================================
 
 resource "google_compute_address" "reserved_ip" {
