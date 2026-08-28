@@ -1,9 +1,9 @@
 # ==============================================================================
-# USE CASE 1: MANAGEMENT CLUSTER CONFIGURATION
-# File: sample_management_cluster.tfvars
+# USE CASE 1.1: STAGING MANAGEMENT DOMAIN MANAGEMENT CLUSTER CONFIGURATION
+# File: sample_staging_management_cluster.tfvars
 # Description: Fully documented sample input file for Day-0/Day-1 provisioning and Day-2
 #              lifecycle operations (Node Expansion and Appliance Addition) for a
-#              VMware Cloud Foundation (VCF) Management Cluster.
+#              VMware Cloud Foundation (VCF) Management Cluster in a Staging environment.
 # ==============================================================================
 # LIFECYCLE & OPERATIONS INSTRUCTIONS:
 # ------------------------------------------------------------------------------
@@ -31,7 +31,7 @@
 #
 # 3. Day-2 Appliance Addition:
 #    - Set `deployment_mode = "appliance_addition"`.
-#    - In Section 5, add the new appliance name(s) and static IP address(es) to `mgmt_ip_values` (for Management ILB forwarding rules) and/or `nsx_ip_values` (for NSX Datapath ILB forwarding rules). Example: `"vcf-one-more-appliance" = "10.200.0.28"` OR `"vcf-one-more-appliance" = ""` if your address type is ephemeral/reserved automatic.
+#    - In Section 5, add the new appliance name(s) and static IP address(es) to `mgmt_ip_values` (for Management ILB forwarding rules) and/or `nsx_ip_values` (for NSX Datapath ILB forwarding rules). Example: `"vcf-one-more-appliance" = "10.250.0.28"` OR `"vcf-one-more-appliance" = ""` if your address type is ephemeral/reserved automatic.
 #    - Run `terraform apply`. Terraform will provision the new ILB forwarding rules, IP reservations, and Cloud DNS A/PTR records without modifying existing compute nodes.
 # ==============================================================================
 
@@ -42,17 +42,17 @@
 # Description: Target GCP Project ID where all infrastructure resources will be provisioned.
 # Valid Values: Valid GCP project ID string (e.g., "my-gcp-project-id").
 # Default Value: null (Required)
-project_id = "vmwareengine-bm-autopush-10"
+project_id = "v5e2bab89bdeab8d0-tp"
 
 # Description: Target GCP Region for infrastructure provisioning (e.g., VPC, subnets, load balancers, placement policy).
-# Valid Values: Valid GCP region name string (e.g., "us-east4", "us-central1").
+# Valid Values: Valid GCP region name string (e.g., "us-central1", "us-east4").
 # Default Value: None (Required)
-region = "us-east4"
+region = "us-central1"
 
 # Description: Target GCP Zone for bare-metal ESXi host deployment and zonal Network Endpoint Groups (NEGs).
-# Valid Values: Valid GCP zone name string within the target region (e.g., "us-east4-c", "us-east4-b").
+# Valid Values: Valid GCP zone name string within the target region (e.g., "us-central1-staginga", "us-central1-a").
 # Default Value: None (Required)
-zone = "us-east4-c"
+zone = "us-central1-staginga"
 
 # Description: Global prefix prepended to all auto-generated GCP resource names (VPC, subnets, NEGs, DNS zones, placement policies, instances) when explicit names are null or omitted. If resource names are explicitly specified, this prefix is left unused for those resources.
 # Valid Values: Lowercase alphanumeric string with hyphens (e.g., "vcf-mgmt-sample", "myvcf").
@@ -118,9 +118,9 @@ forward_zone_name = null
 reverse_zone_name = null
 
 # Description: Reverse lookup domain name (in-addr.arpa.) for the reverse managed DNS zone and PTR records. Required when create_dns_zones = true.
-# Valid Values: Valid in-addr.arpa domain string (e.g., "200.10.in-addr.arpa.", "10.in-addr.arpa.", "0.200.10.in-addr.arpa.").
+# Valid Values: Valid in-addr.arpa domain string (e.g., "250.10.in-addr.arpa.", "10.in-addr.arpa.", "0.250.10.in-addr.arpa.").
 # Default Value: null (Conditional - Required when create_dns_zones = true)
-reverse_domain_name = "200.10.in-addr.arpa."
+reverse_domain_name = "250.10.in-addr.arpa."
 
 # Description: Time-to-live (TTL) in seconds for Cloud DNS record sets (A and PTR records).
 # Valid Values: Positive integer in seconds (e.g., 60, 300, 3600).
@@ -152,9 +152,9 @@ create_subnets_and_negs = true
 mgmt_subnet_name = "vcf-mgmt-sample-subnet"
 
 # Description: IPv4 CIDR range for the Management subnetwork. Required when create_subnets_and_negs = true.
-# Valid Values: Valid IPv4 CIDR block string (e.g., "10.200.0.0/24").
+# Valid Values: Valid IPv4 CIDR block string (e.g., "10.250.0.0/24").
 # Default Value: null (Conditional - Required when create_subnets_and_negs = true)
-mgmt_subnet_cidr = "10.200.0.0/24"
+mgmt_subnet_cidr = "10.250.0.0/24"
 
 # Description: Resource name of the Management NIC Network Endpoint Group (NEG). Created if create_subnets_and_negs = true (defaults to "<resource_name_prefix>-mgmt-neg" if null), or referenced if false.
 # Valid Values: Valid NEG resource name string, or null.
@@ -171,9 +171,9 @@ mgmt_neg_name = "vcf-mgmt-sample-neg"
 vsan_subnet_name = "vcf-mgmt-sample-vsan-subnet"
 
 # Description: IPv4 CIDR range for the vSAN storage subnetwork. Required when create_subnets_and_negs = true.
-# Valid Values: Valid IPv4 CIDR block string (e.g., "10.200.1.0/24").
+# Valid Values: Valid IPv4 CIDR block string (e.g., "10.250.1.0/24").
 # Default Value: null (Conditional - Required when create_subnets_and_negs = true)
-vsan_subnet_cidr = "10.200.1.0/24"
+vsan_subnet_cidr = "10.250.1.0/24"
 
 # ------------------------------------------------------------------------------
 # 3.3 vMotion Migration Subnet
@@ -185,9 +185,9 @@ vsan_subnet_cidr = "10.200.1.0/24"
 vmotion_subnet_name = "vcf-mgmt-sample-vmotion-subnet"
 
 # Description: IPv4 CIDR range for the vMotion live migration subnetwork. Required when create_subnets_and_negs = true.
-# Valid Values: Valid IPv4 CIDR block string (e.g., "10.200.2.0/24").
+# Valid Values: Valid IPv4 CIDR block string (e.g., "10.250.2.0/24").
 # Default Value: null (Conditional - Required when create_subnets_and_negs = true)
-vmotion_subnet_cidr = "10.200.2.0/24"
+vmotion_subnet_cidr = "10.250.2.0/24"
 
 # ------------------------------------------------------------------------------
 # 3.4 NSX TEP Overlay Subnet & NEG
@@ -199,9 +199,9 @@ vmotion_subnet_cidr = "10.200.2.0/24"
 nsx_tep_subnet_name = "vcf-mgmt-sample-nsx-tep-subnet"
 
 # Description: IPv4 CIDR range for the NSX TEP encapsulation subnetwork. Required when create_subnets_and_negs = true.
-# Valid Values: Valid IPv4 CIDR block string (e.g., "10.200.3.0/24").
+# Valid Values: Valid IPv4 CIDR block string (e.g., "10.250.3.0/24").
 # Default Value: null (Conditional - Required when create_subnets_and_negs = true)
-nsx_tep_subnet_cidr = "10.200.3.0/24"
+nsx_tep_subnet_cidr = "10.250.3.0/24"
 
 # Description: Resource name of the NSX TEP NIC Network Endpoint Group (NEG). Created if create_subnets_and_negs = true (defaults to "<resource_name_prefix>-nsx-neg" if null), or referenced if false.
 # Valid Values: Valid NEG resource name string, or null.
@@ -218,7 +218,7 @@ nsx_neg_name = "vcf-mgmt-sample-nsx-neg"
 additional_dynamic_subnets = [
   {
     subnet_name = "vcf-mgmt-sample-additional-subnet-1"
-    subnet_cidr = "10.200.4.0/24"
+    subnet_cidr = "10.250.4.0/24"
   }
 ]
 
@@ -237,12 +237,12 @@ number_of_nodes = 3
 #   - "z3-highmem-192-highlssd-metal": Bare-metal node with Local NVMe SSDs (required for vSAN storage).
 #   - "z3-highmem-192-metal": Bare-metal node without Local SSDs (for external SAN/NFS/iSCSI storage).
 # Default Value: "z3-highmem-192-highlssd-metal" (Optional)
-machine_type = "z3-highmem-192-highlssd-metal"
+machine_type = "z3-highmem-192-metal"
 
 # Description: Full resource URI of the ESXi OS boot disk image for bare-metal host instances.
 # Valid Values: Valid full ESXi image URI matching projects/<project>/global/images/<image-name>.
 # Default Value: None (Required)
-esxi_image = "projects/gcve-bcom-vvol-project/global/images/vmware-esxi-9-1-0-dm-v20260513" # TODO(tulippandey) Change this once public qualified images are available
+esxi_image = "projects/gcve-bcom-vvol-project/global/images/vmware-esxi-9-1-0-v20260730" # TODO(tulippandey) Change this once public qualified images are available
 
 # Description: Domain name appended to node_names to compute host FQDNs and used as the forward DNS zone domain.
 # Valid Values: Non-empty domain string (e.g., "gcve-vcf.test.gve.", "vcf.corp.local.").
@@ -281,14 +281,14 @@ availability_count = 6
 # Description: Explicit list of availability domain IDs per host node (values 1 to availability_count). If null, hosts are automatically distributed round-robin across availability domains. Note: If left null/unspecified during cluster creation, do not modify or specify during Day 2 node expansion.
 # Valid Values: List of integers (each between 1 and availability_count), or null (for automatic round-robin).
 # Default Value: null (Optional)
-availability_domains = [2, 3, 4]
+availability_domains = [1, 2, 3, 4]
 
 # ------------------------------------------------------------------------------
 # Network Interface IP Allocations & VLAN Tags
 # Supported IP modes and required IP values:
 #   1. "reserved_custom"   : Static GCP reserved IP addresses assigned with user-specified IP values.
 #                            The corresponding `*_ip_values` list MUST contain exactly `number_of_nodes`
-#                            valid non-conflicting IPv4 addresses within the subnetwork CIDR (e.g., ["10.200.0.3", "10.200.0.4", "10.200.0.5"]).
+#                            valid non-conflicting IPv4 addresses within the subnetwork CIDR (e.g., ["10.250.0.3", "10.250.0.4", "10.250.0.5"]).
 #   2. "reserved_automatic": Static GCP reserved IP addresses automatically allocated by GCP from the
 #                            subnetwork CIDR range. The corresponding `*_ip_values` list should be left empty (`[]`).
 #   3. "ephemeral_custom"  : Ephemeral IP addresses assigned with user-specified IP values.
@@ -308,9 +308,9 @@ availability_domains = [2, 3, 4]
 mgmt_nic_ip_address_type = "reserved_custom"
 
 # Description: List of explicit IP addresses for Management NICs. Required when mgmt_nic_ip_address_type is "reserved_custom" or "ephemeral_custom" (must contain number_of_nodes entries). Leave empty ([]) for "reserved_automatic" or "ephemeral_automatic".
-# Valid Values: List of valid non-conflicting IPv4 address strings in mgmt_subnet_cidr (e.g., ["10.200.0.3", "10.200.0.4", "10.200.0.5"]).
+# Valid Values: List of valid non-conflicting IPv4 address strings in mgmt_subnet_cidr (e.g., ["10.250.0.3", "10.250.0.4", "10.250.0.5"]).
 # Default Value: [] (Conditional)
-mgmt_nic_ip_values = ["10.200.0.3", "10.200.0.4", "10.200.0.5"]
+mgmt_nic_ip_values = ["10.250.0.3", "10.250.0.4", "10.250.0.5"]
 
 # ------------------------------------------------------------------------------
 # 4.2 vSAN NIC Configuration
@@ -329,7 +329,7 @@ vsan_ip_address_type = "reserved_custom"
 # Description: List of explicit IP addresses for vSAN NICs. Required when vsan_ip_address_type is "reserved_custom" or "ephemeral_custom" (must contain number_of_nodes entries). Leave empty ([]) for "reserved_automatic" or "ephemeral_automatic".
 # Valid Values: List of valid non-conflicting IPv4 address strings in vsan_subnet_cidr.
 # Default Value: [] (Conditional)
-vsan_ip_values = ["10.200.1.3", "10.200.1.4", "10.200.1.5"]
+vsan_ip_values = ["10.250.1.3", "10.250.1.4", "10.250.1.5"]
 
 # ------------------------------------------------------------------------------
 # 4.3 vMotion NIC Configuration
@@ -346,9 +346,9 @@ vmotion_vlan_id = 200
 vmotion_ip_address_type = "reserved_custom"
 
 # Description: List of explicit IP addresses for vMotion NICs. Required when vmotion_ip_address_type is "reserved_custom" or "ephemeral_custom" (must contain number_of_nodes entries). Leave empty ([]) for "reserved_automatic" or "ephemeral_automatic".
-# Valid Values: List of valid IPv4 address strings in vmotion_subnet_cidr.
+# Valid Values: List of valid non-conflicting IPv4 address strings in vmotion_subnet_cidr.
 # Default Value: [] (Conditional)
-vmotion_ip_values = ["10.200.2.3", "10.200.2.4", "10.200.2.5"]
+vmotion_ip_values = ["10.250.2.3", "10.250.2.4", "10.250.2.5"]
 
 # ------------------------------------------------------------------------------
 # 4.4 NSX TEP NIC Configuration
@@ -367,7 +367,7 @@ nsx_tep_ip_address_type = "reserved_custom"
 # Description: List of explicit IP addresses for NSX TEP NICs. Required when nsx_tep_ip_address_type is "reserved_custom" or "ephemeral_custom" (must contain number_of_nodes entries). Leave empty ([]) for "reserved_automatic" or "ephemeral_automatic".
 # Valid Values: List of valid IPv4 address strings in nsx_tep_subnet_cidr.
 # Default Value: [] (Conditional)
-nsx_tep_ip_values = ["10.200.3.3", "10.200.3.4", "10.200.3.5"]
+nsx_tep_ip_values = ["10.250.3.3", "10.250.3.4", "10.250.3.5"]
 
 # ------------------------------------------------------------------------------
 # 4.5 Additional Dynamic NICs
@@ -382,7 +382,7 @@ additional_dynamic_nics = [
     subnet_name     = "vcf-mgmt-sample-additional-subnet-1"
     vlan_id         = 210
     ip_address_type = "reserved_custom"
-    ip_values       = ["10.200.4.3", "10.200.4.4", "10.200.4.5"]
+    ip_values       = ["10.250.4.3", "10.250.4.4", "10.250.4.5"]
   }
 ]
 
@@ -392,7 +392,7 @@ additional_dynamic_nics = [
 # ==============================================================================
 # Supported IP modes and required map structures for appliance inputs:
 #   - For "reserved_custom" or "ephemeral_custom": Provide a map of appliance names mapped
-#     to static IPv4 addresses within the subnetwork CIDR (e.g., { "vcenter" = "10.200.0.11", "cloudproxy" = "10.200.0.10" }).
+#     to static IPv4 addresses within the subnetwork CIDR (e.g., { "vcenter" = "10.250.0.11", "cloudproxy" = "10.250.0.10" }).
 #   - For "reserved_automatic" or "ephemeral_automatic": Provide a map of appliance names mapped
 #     to empty string values "" (e.g., { "vcenter" = "", "cloudproxy" = "" }), allowing GCP
 #     to automatically allocate IP addresses from the subnetwork CIDR while creating the required forwarding rules.
@@ -413,29 +413,29 @@ mgmt_ip_address_type = "reserved_custom"
 # Default Value: {} (Optional)
 mgmt_ip_values = {
   # VCF Control Plane Core Services
-  "vcf"                 = "10.200.0.9"  # VCF Bringup / Installer VIP
-  "cloudproxy"          = "10.200.0.10" # VMware Cloud Proxy Appliance
-  "vcenter"             = "10.200.0.11" # Management vCenter Server Appliance (VCSA)
-  "vcf-license"         = "10.200.0.16" # VCF License Manager Service
-  "vcf-instance"        = "10.200.0.17" # VCF Instance Service Manager
-  "identity-broker"     = "10.200.0.18" # VMware Workspace ONE Access / Identity Broker
-  "vcf-service-runtime" = "10.200.0.19" # VCF Service Runtime Platform
+  "vcf"                 = "10.250.0.9"  # VCF Bringup / Installer VIP
+  "cloudproxy"          = "10.250.0.10" # VMware Cloud Proxy Appliance
+  "vcenter"             = "10.250.0.11" # Management vCenter Server Appliance (VCSA)
+  "vcf-license"         = "10.250.0.16" # VCF License Manager Service
+  "vcf-instance"        = "10.250.0.17" # VCF Instance Service Manager
+  "identity-broker"     = "10.250.0.18" # VMware Workspace ONE Access / Identity Broker
+  "vcf-service-runtime" = "10.250.0.19" # VCF Service Runtime Platform
 
   # VMware Aria Suite Operations & Automation Services
-  "vcfops-p"      = "10.200.0.12" # VMware Aria Operations Primary Node
-  "vcffleet"      = "10.200.0.13" # VMware Aria Operations Fleet Management Service
-  "vcfautomation" = "10.200.0.20" # VMware Aria Automation Core Appliance (Required if and only if VCF Automation deployment is intended)
-  "vcfruntime"    = "10.200.0.21" # VMware Aria Automation Orchestrator Runtime (Required if and only if VCF Automation deployment is intended)
-  "vcfops-r"      = "10.200.0.24" # VMware Aria Operations Replica Node
-  "vcfops-d"      = "10.200.0.25" # VMware Aria Operations Data Analytics Node
+  "vcfops-p"      = "10.250.0.12" # VMware Aria Operations Primary Node
+  "vcffleet"      = "10.250.0.13" # VMware Aria Operations Fleet Management Service
+  "vcfautomation" = "10.250.0.20" # VMware Aria Automation Core Appliance (Required if and only if VCF Automation deployment is intended)
+  "vcfruntime"    = "10.250.0.21" # VMware Aria Automation Orchestrator Runtime (Required if and only if VCF Automation deployment is intended)
+  "vcfops-r"      = "10.250.0.24" # VMware Aria Operations Replica Node
+  "vcfops-d"      = "10.250.0.25" # VMware Aria Operations Data Analytics Node
 
   # NSX Management Cluster & Management Interfaces
-  "nsx"       = "10.200.0.14" # NSX Management Cluster Floating Virtual IP (VIP)
-  "nsx-0"     = "10.200.0.15" # NSX Manager Node 1 Management IP
-  "nsx-1"     = "10.200.0.22" # NSX Manager Node 2 Management IP
-  "nsx-2"     = "10.200.0.23" # NSX Manager Node 3 Management IP
-  "nsx-edge1" = "10.200.0.26" # NSX Edge Node 1 Management Interface (Required if and only if NSX Edge appliance is being deployed)
-  "nsx-edge2" = "10.200.0.27" # NSX Edge Node 2 Management Interface (Required if and only if NSX Edge appliance is being deployed)
+  "nsx"       = "10.250.0.14" # NSX Management Cluster Floating Virtual IP (VIP)
+  "nsx-0"     = "10.250.0.15" # NSX Manager Node 1 Management IP
+  "nsx-1"     = "10.250.0.22" # NSX Manager Node 2 Management IP
+  "nsx-2"     = "10.250.0.23" # NSX Manager Node 3 Management IP
+  "nsx-edge1" = "10.250.0.26" # NSX Edge Node 1 Management Interface (Required if and only if NSX Edge appliance is being deployed)
+  "nsx-edge2" = "10.250.0.27" # NSX Edge Node 2 Management Interface (Required if and only if NSX Edge appliance is being deployed)
 }
 
 # ------------------------------------------------------------------------------
@@ -452,9 +452,9 @@ nsx_ip_address_type = "reserved_custom"
 # Default Value: {} (Optional)
 nsx_ip_values = {
   # All appliances below are required if and only if NSX Edge appliance is being deployed
-  "uplink-vip-ip"         = "10.200.3.10" # NSX Edge Cluster Uplink Virtual Floating IP (Required iff NSX Edge is deployed)
-  "edge-node-1-uplink-ip" = "10.200.3.11" # NSX Edge Node 1 External BGP/Uplink IP (Required iff NSX Edge is deployed)
-  "edge-node-1-tep-ip"    = "10.200.3.12" # NSX Edge Node 1 Geneve Overlay Tunnel Endpoint (TEP) (Required iff NSX Edge is deployed)
-  "edge-node-2-uplink-ip" = "10.200.3.13" # NSX Edge Node 2 External BGP/Uplink IP (Required iff NSX Edge is deployed)
-  "edge-node-2-tep-ip"    = "10.200.3.14" # NSX Edge Node 2 Geneve Overlay Tunnel Endpoint (TEP) (Required iff NSX Edge is deployed)
+  "uplink-vip-ip"         = "10.250.3.10" # NSX Edge Cluster Uplink Virtual Floating IP (Required iff NSX Edge is deployed)
+  "edge-node-1-uplink-ip" = "10.250.3.11" # NSX Edge Node 1 External BGP/Uplink IP (Required iff NSX Edge is deployed)
+  "edge-node-1-tep-ip"    = "10.250.3.12" # NSX Edge Node 1 Geneve Overlay Tunnel Endpoint (TEP) (Required iff NSX Edge is deployed)
+  "edge-node-2-uplink-ip" = "10.250.3.13" # NSX Edge Node 2 External BGP/Uplink IP (Required iff NSX Edge is deployed)
+  "edge-node-2-tep-ip"    = "10.250.3.14" # NSX Edge Node 2 Geneve Overlay Tunnel Endpoint (TEP) (Required iff NSX Edge is deployed)
 }
