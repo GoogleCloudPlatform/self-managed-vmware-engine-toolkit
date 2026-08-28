@@ -39,10 +39,10 @@ variable "resource_name_prefix" {
 
 variable "ip_address_type" {
   type        = string
-  description = "IP allocation mode: ephemeral_automatic, ephemeral_custom, reserved_ephemeral, reserved_custom"
+  description = "IP allocation mode: ephemeral_automatic, ephemeral_custom, reserved_automatic, reserved_custom"
   validation {
-    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_ephemeral", "reserved_custom", "reserved"], var.ip_address_type)
-    error_message = "ip_address_type must be one of: ephemeral_automatic, ephemeral_custom, reserved_ephemeral, reserved_custom."
+    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_automatic", "reserved_custom"], var.ip_address_type)
+    error_message = "ip_address_type must be one of: ephemeral_automatic, ephemeral_custom, reserved_automatic, reserved_custom."
   }
 }
 

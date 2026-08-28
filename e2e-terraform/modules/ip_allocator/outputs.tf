@@ -20,7 +20,7 @@ output "effective_ips" {
       )
     )
   ]
-  description = "List of effective IP addresses to bind to instances or forwarding rules (null for ephemeral_automatic, custom IP for ephemeral_custom, reserved IP for reserved_ephemeral and reserved_custom)"
+  description = "List of effective IP addresses to bind to instances or forwarding rules (null for ephemeral_automatic, custom IP for ephemeral_custom, reserved IP for reserved_automatic and reserved_custom)"
 }
 
 output "effective_ip_map" {
