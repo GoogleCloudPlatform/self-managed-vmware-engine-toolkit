@@ -124,6 +124,7 @@ module "hosts" {
   region               = var.region
   zone                 = var.zone
   resource_name_prefix = var.resource_name_prefix
+  deployment_mode      = var.deployment_mode
   number_of_nodes      = var.number_of_nodes
   machine_type         = var.machine_type
   # Full ESXi image resource URI must be provided (e.g. 'projects/<project>/global/images/<image-name>')
