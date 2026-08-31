@@ -16,7 +16,6 @@ terraform {
   required_providers {
     google = {
       source                = "hashicorp/google"
-      configuration_aliases = [google.alpha]
     }
   }
 }
@@ -187,8 +186,26 @@ module "dynamic_nic_ip_allocators" {
 }
 
 # ==============================================================================
-# 3. GCE Bare Metal Node Instances
+# 3. GCE Bare Metal Node Disks & Instances
 # ==============================================================================
+
+resource "google_compute_disk" "boot_disks" {
+  count   = var.number_of_nodes
+  project = var.project_id
+  name    = "${local.effective_node_names[count.index]}-boot-disk"
+  zone    = var.zone
+  image   = var.esxi_image
+  type    = "hyperdisk-balanced"
+  size    = 128
+
+  guest_os_features {
+    type = "IDPF"
+  }
+
+  labels = {
+    gcve-node = "true"
+  }
+}
 
 resource "google_compute_instance" "nodes" {
   count               = var.number_of_nodes
@@ -210,10 +227,7 @@ resource "google_compute_instance" "nodes" {
   }
 
   boot_disk {
-    initialize_params {
-      # Full ESXi image resource URI referencing a valid ESXi image
-      image = var.esxi_image
-    }
+    source = google_compute_disk.boot_disks[count.index].self_link
   }
 
   service_account {
@@ -284,7 +298,6 @@ resource "google_compute_instance" "nodes" {
 
 # Attach host instances to Management NEG (batch resource for all nodes)
 resource "google_compute_network_endpoints" "mgmt_endpoints" {
-  provider               = google.alpha
   count                  = (var.mgmt_neg_name != null && var.mgmt_neg_name != "") ? 1 : 0
   project                = var.project_id
   network_endpoint_group = var.mgmt_neg_name
@@ -301,7 +314,6 @@ resource "google_compute_network_endpoints" "mgmt_endpoints" {
 
 # Attach host instances to NSX TEP NEG (batch resource for all nodes)
 resource "google_compute_network_endpoints" "nsx_endpoints" {
-  provider               = google.alpha
   count                  = (var.nsx_neg_name != null && var.nsx_neg_name != "") ? 1 : 0
   project                = var.project_id
   network_endpoint_group = var.nsx_neg_name

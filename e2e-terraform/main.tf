@@ -74,9 +74,6 @@ module "vpc" {
 module "subnets" {
   source = "./modules/subnets"
 
-  providers = {
-    google.alpha = google.alpha
-  }
 
   project_id              = var.project_id
   region                  = var.region
@@ -116,9 +113,6 @@ module "subnets" {
 module "hosts" {
   source = "./modules/hosts"
 
-  providers = {
-    google.alpha = google.alpha
-  }
 
   project_id           = var.project_id
   region               = var.region

@@ -18,7 +18,6 @@ terraform {
     google = {
       source                = "hashicorp/google"
       version               = ">= 4.80.0"
-      configuration_aliases = [google.alpha]  # TODO(tulippandey) - Migrate to v1 when support for NEG and Subnet features is available
     }
   }
 }
@@ -57,7 +56,6 @@ locals {
 
 # Management Subnetwork (Untagged Native VLAN on nic0)
 resource "google_compute_subnetwork" "mgmt_subnet" {
-  provider                 = google.alpha
   count                    = var.create_subnets_and_negs ? 1 : 0
   project                  = var.project_id
   name                     = local.effective_mgmt_subnet_name
@@ -70,7 +68,6 @@ resource "google_compute_subnetwork" "mgmt_subnet" {
 
 # vSAN Storage Subnetwork
 resource "google_compute_subnetwork" "vsan_subnet" {
-  provider                 = google.alpha
   count                    = var.create_subnets_and_negs ? 1 : 0
   project                  = var.project_id
   name                     = local.effective_vsan_subnet_name
@@ -83,7 +80,6 @@ resource "google_compute_subnetwork" "vsan_subnet" {
 
 # vMotion Migration Subnetwork
 resource "google_compute_subnetwork" "vmotion_subnet" {
-  provider                 = google.alpha
   count                    = var.create_subnets_and_negs ? 1 : 0
   project                  = var.project_id
   name                     = local.effective_vmotion_subnet_name
@@ -96,7 +92,6 @@ resource "google_compute_subnetwork" "vmotion_subnet" {
 
 # NSX TEP Overlay Subnetwork
 resource "google_compute_subnetwork" "nsx_tep_subnet" {
-  provider                 = google.alpha
   count                    = var.create_subnets_and_negs ? 1 : 0
   project                  = var.project_id
   name                     = local.effective_nsx_tep_subnet_name
@@ -109,7 +104,6 @@ resource "google_compute_subnetwork" "nsx_tep_subnet" {
 
 # Additional Dynamic VLAN Subnetworks
 resource "google_compute_subnetwork" "dynamic_subnets" {
-  provider                 = google.alpha
   for_each                 = var.create_subnets_and_negs ? { for s in var.additional_dynamic_subnets : s.subnet_name => s } : {}
   project                  = var.project_id
   name                     = each.value.subnet_name
@@ -199,7 +193,6 @@ data "google_compute_subnetwork" "existing_dynamic_subnets" {
 # ==============================================================================
 
 resource "google_compute_network_endpoint_group" "mgmt_neg" {
-  provider              = google.alpha
   count                 = var.create_subnets_and_negs ? 1 : 0
   project               = var.project_id
   name                  = local.effective_mgmt_neg_name
@@ -212,7 +205,6 @@ resource "google_compute_network_endpoint_group" "mgmt_neg" {
 }
 
 resource "google_compute_network_endpoint_group" "nsx_neg" {
-  provider              = google.alpha
   count                 = var.create_subnets_and_negs ? 1 : 0
   project               = var.project_id
   name                  = local.effective_nsx_neg_name
