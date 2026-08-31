@@ -14,20 +14,20 @@
 
 output "effective_ips" {
   value = [
-    for i in range(local.count) : (
-      local.is_ephemeral_custom ? (try(local.ip_addresses[i], "") != "" ? local.ip_addresses[i] : null) : (
-        local.is_reserved ? google_compute_address.reserved_ip[i].address : null
+    for i, name in var.entities : (
+      local.is_ephemeral_custom ? (try(local.entity_ip_map[name], "") != "" ? local.entity_ip_map[name] : null) : (
+        local.is_reserved ? google_compute_address.reserved_ip[name].address : null
       )
     )
   ]
-  description = "List of effective IP addresses to bind to instances or forwarding rules (null for ephemeral_automatic, custom IP for ephemeral_custom, reserved IP for reserved_ephemeral and reserved_custom)"
+  description = "List of effective IP addresses to bind to instances or forwarding rules (null for ephemeral_automatic, custom IP for ephemeral_custom, reserved IP for reserved_automatic and reserved_custom)"
 }
 
 output "effective_ip_map" {
   value = {
-    for i, name in var.entities : name => (
-      local.is_ephemeral_custom ? (try(local.ip_addresses[i], "") != "" ? local.ip_addresses[i] : null) : (
-        local.is_reserved ? google_compute_address.reserved_ip[i].address : null
+    for name in var.entities : name => (
+      local.is_ephemeral_custom ? (try(local.entity_ip_map[name], "") != "" ? local.entity_ip_map[name] : null) : (
+        local.is_reserved ? google_compute_address.reserved_ip[name].address : null
       )
     )
   }
@@ -35,11 +35,11 @@ output "effective_ip_map" {
 }
 
 output "reserved_addresses" {
-  value       = google_compute_address.reserved_ip[*].address
+  value       = local.is_reserved ? [for e in var.entities : google_compute_address.reserved_ip[e].address] : []
   description = "List of reserved IP address values (empty if not reserved)"
 }
 
 output "reserved_address_self_links" {
-  value       = google_compute_address.reserved_ip[*].self_link
+  value       = local.is_reserved ? [for e in var.entities : google_compute_address.reserved_ip[e].self_link] : []
   description = "List of self links for reserved IP address resources (empty if not reserved)"
 }

@@ -89,10 +89,10 @@ variable "nsx_tep_subnet_cidr" {
 variable "mgmt_ip_address_type" {
   type        = string
   default     = "ephemeral_automatic"
-  description = "IP mode for Management ILB Forwarding Rules (ephemeral_automatic, ephemeral_custom, reserved_ephemeral, reserved_custom)."
+  description = "IP mode for Management ILB Forwarding Rules (ephemeral_automatic, ephemeral_custom, reserved_automatic, reserved_custom)."
   validation {
-    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_ephemeral", "reserved_custom", "reserved"], var.mgmt_ip_address_type)
-    error_message = "Management IP address type must be one of: ephemeral_automatic, ephemeral_custom, reserved_ephemeral, reserved_custom."
+    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_automatic", "reserved_custom"], var.mgmt_ip_address_type)
+    error_message = "Management IP address type must be one of: ephemeral_automatic, ephemeral_custom, reserved_automatic, reserved_custom."
   }
 }
 
@@ -115,10 +115,10 @@ variable "mgmt_ip_values" {
 variable "nsx_ip_address_type" {
   type        = string
   default     = "ephemeral_automatic"
-  description = "IP mode for NSX Datapath ILB Forwarding Rules (ephemeral_automatic, ephemeral_custom, reserved_ephemeral, reserved_custom)."
+  description = "IP mode for NSX Datapath ILB Forwarding Rules (ephemeral_automatic, ephemeral_custom, reserved_automatic, reserved_custom)."
   validation {
-    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_ephemeral", "reserved_custom", "reserved"], var.nsx_ip_address_type)
-    error_message = "NSX IP address type must be one of: ephemeral_automatic, ephemeral_custom, reserved_ephemeral, reserved_custom."
+    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_automatic", "reserved_custom"], var.nsx_ip_address_type)
+    error_message = "NSX IP address type must be one of: ephemeral_automatic, ephemeral_custom, reserved_automatic, reserved_custom."
   }
 }
 

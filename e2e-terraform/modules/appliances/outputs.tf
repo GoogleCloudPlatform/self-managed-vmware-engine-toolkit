@@ -14,21 +14,21 @@
 
 output "management_backend_services" {
   value = {
-    for idx, name in local.mgmt_appliances : name => google_compute_region_backend_service.mgmt_backends[idx].self_link
+    for name in local.mgmt_appliances : name => google_compute_region_backend_service.mgmt_backends[name].self_link
   }
   description = "Map of management appliance names to their regional backend service self links"
 }
 
 output "management_forwarding_rules" {
   value = {
-    for idx, name in local.mgmt_appliances : name => google_compute_forwarding_rule.mgmt_forwarding_rules[idx].self_link
+    for name in local.mgmt_appliances : name => google_compute_forwarding_rule.mgmt_forwarding_rules[name].self_link
   }
   description = "Map of management appliance names to their regional forwarding rule self links"
 }
 
 output "management_forwarding_rule_ips" {
   value = {
-    for idx, name in local.mgmt_appliances : name => google_compute_forwarding_rule.mgmt_forwarding_rules[idx].ip_address
+    for name in local.mgmt_appliances : name => google_compute_forwarding_rule.mgmt_forwarding_rules[name].ip_address
   }
   description = "Map of management appliance names to their assigned forwarding rule IP addresses"
 }
@@ -40,21 +40,21 @@ output "management_reserved_addresses" {
 
 output "nsx_datapath_backend_services" {
   value = {
-    for idx, name in local.nsx_appliances : name => google_compute_region_backend_service.nsx_backends[idx].self_link
+    for name in local.nsx_appliances : name => google_compute_region_backend_service.nsx_backends[name].self_link
   }
   description = "Map of NSX datapath appliance names to their regional backend service self links"
 }
 
 output "nsx_datapath_forwarding_rules" {
   value = {
-    for idx, name in local.nsx_appliances : name => google_compute_forwarding_rule.nsx_forwarding_rules[idx].self_link
+    for name in local.nsx_appliances : name => google_compute_forwarding_rule.nsx_forwarding_rules[name].self_link
   }
   description = "Map of NSX datapath appliance names to their regional forwarding rule self links"
 }
 
 output "nsx_datapath_forwarding_rule_ips" {
   value = {
-    for idx, name in local.nsx_appliances : name => google_compute_forwarding_rule.nsx_forwarding_rules[idx].ip_address
+    for name in local.nsx_appliances : name => google_compute_forwarding_rule.nsx_forwarding_rules[name].ip_address
   }
   description = "Map of NSX datapath appliance names to their assigned forwarding rule IP addresses"
 }

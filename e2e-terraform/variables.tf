@@ -325,10 +325,10 @@ variable "availability_domains" {
 variable "mgmt_nic_ip_address_type" {
   type        = string
   default     = "ephemeral_automatic"
-  description = "IP mode for Management NIC: 'ephemeral_automatic', 'ephemeral_custom', 'reserved_ephemeral', 'reserved_custom'."
+  description = "IP mode for Management NIC: 'ephemeral_automatic', 'ephemeral_custom', 'reserved_automatic', 'reserved_custom'."
   validation {
-    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_ephemeral", "reserved_custom", "reserved"], var.mgmt_nic_ip_address_type)
-    error_message = "mgmt_nic_ip_address_type must be one of: ephemeral_automatic, ephemeral_custom, reserved_ephemeral, reserved_custom."
+    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_automatic", "reserved_custom"], var.mgmt_nic_ip_address_type)
+    error_message = "mgmt_nic_ip_address_type must be one of: ephemeral_automatic, ephemeral_custom, reserved_automatic, reserved_custom."
   }
 }
 
@@ -356,10 +356,10 @@ variable "vsan_vlan_id" {
 variable "vsan_ip_address_type" {
   type        = string
   default     = "ephemeral_automatic"
-  description = "IP mode for vSAN NIC: 'ephemeral_automatic', 'ephemeral_custom', 'reserved_ephemeral', 'reserved_custom'."
+  description = "IP mode for vSAN NIC: 'ephemeral_automatic', 'ephemeral_custom', 'reserved_automatic', 'reserved_custom'."
   validation {
-    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_ephemeral", "reserved_custom", "reserved"], var.vsan_ip_address_type)
-    error_message = "vsan_ip_address_type must be one of: ephemeral_automatic, ephemeral_custom, reserved_ephemeral, reserved_custom."
+    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_automatic", "reserved_custom"], var.vsan_ip_address_type)
+    error_message = "vsan_ip_address_type must be one of: ephemeral_automatic, ephemeral_custom, reserved_automatic, reserved_custom."
   }
 }
 
@@ -387,10 +387,10 @@ variable "vmotion_vlan_id" {
 variable "vmotion_ip_address_type" {
   type        = string
   default     = "ephemeral_automatic"
-  description = "IP mode for vMotion NIC: 'ephemeral_automatic', 'ephemeral_custom', 'reserved_ephemeral', 'reserved_custom'."
+  description = "IP mode for vMotion NIC: 'ephemeral_automatic', 'ephemeral_custom', 'reserved_automatic', 'reserved_custom'."
   validation {
-    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_ephemeral", "reserved_custom", "reserved"], var.vmotion_ip_address_type)
-    error_message = "vmotion_ip_address_type must be one of: ephemeral_automatic, ephemeral_custom, reserved_ephemeral, reserved_custom."
+    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_automatic", "reserved_custom"], var.vmotion_ip_address_type)
+    error_message = "vmotion_ip_address_type must be one of: ephemeral_automatic, ephemeral_custom, reserved_automatic, reserved_custom."
   }
 }
 
@@ -418,10 +418,10 @@ variable "nsx_tep_vlan_id" {
 variable "nsx_tep_ip_address_type" {
   type        = string
   default     = "ephemeral_automatic"
-  description = "IP mode for NSX TEP NIC: 'ephemeral_automatic', 'ephemeral_custom', 'reserved_ephemeral', 'reserved_custom'."
+  description = "IP mode for NSX TEP NIC: 'ephemeral_automatic', 'ephemeral_custom', 'reserved_automatic', 'reserved_custom'."
   validation {
-    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_ephemeral", "reserved_custom", "reserved"], var.nsx_tep_ip_address_type)
-    error_message = "nsx_tep_ip_address_type must be one of: ephemeral_automatic, ephemeral_custom, reserved_ephemeral, reserved_custom."
+    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_automatic", "reserved_custom"], var.nsx_tep_ip_address_type)
+    error_message = "nsx_tep_ip_address_type must be one of: ephemeral_automatic, ephemeral_custom, reserved_automatic, reserved_custom."
   }
 }
 
@@ -450,7 +450,7 @@ variable "additional_dynamic_nics" {
     condition = alltrue([
       for nic in var.additional_dynamic_nics :
       nic.vlan_id >= 2 && nic.vlan_id <= 255 &&
-      contains(["ephemeral_automatic", "ephemeral_custom", "reserved_ephemeral", "reserved_custom", "reserved"], nic.ip_address_type) &&
+      contains(["ephemeral_automatic", "ephemeral_custom", "reserved_automatic", "reserved_custom"], nic.ip_address_type) &&
       alltrue([for ip in nic.ip_values : ip != null && ip != "" && can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))])
     ])
     error_message = "Each dynamic NIC must have a valid vlan_id (2-255), supported ip_address_type, and all elements in ip_values must be valid non-empty IPv4 address strings."
@@ -464,10 +464,10 @@ variable "additional_dynamic_nics" {
 variable "mgmt_ip_address_type" {
   type        = string
   default     = "ephemeral_automatic"
-  description = "IP mode for Management ILB Forwarding Rules: 'ephemeral_automatic', 'ephemeral_custom', 'reserved_ephemeral', 'reserved_custom'."
+  description = "IP mode for Management ILB Forwarding Rules: 'ephemeral_automatic', 'ephemeral_custom', 'reserved_automatic', 'reserved_custom'."
   validation {
-    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_ephemeral", "reserved_custom", "reserved"], var.mgmt_ip_address_type)
-    error_message = "mgmt_ip_address_type must be one of: ephemeral_automatic, ephemeral_custom, reserved_ephemeral, reserved_custom."
+    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_automatic", "reserved_custom"], var.mgmt_ip_address_type)
+    error_message = "mgmt_ip_address_type must be one of: ephemeral_automatic, ephemeral_custom, reserved_automatic, reserved_custom."
   }
 }
 
@@ -480,10 +480,10 @@ variable "mgmt_ip_values" {
 variable "nsx_ip_address_type" {
   type        = string
   default     = "ephemeral_automatic"
-  description = "IP mode for NSX Datapath ILB Forwarding Rules: 'ephemeral_automatic', 'ephemeral_custom', 'reserved_ephemeral', 'reserved_custom'."
+  description = "IP mode for NSX Datapath ILB Forwarding Rules: 'ephemeral_automatic', 'ephemeral_custom', 'reserved_automatic', 'reserved_custom'."
   validation {
-    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_ephemeral", "reserved_custom", "reserved"], var.nsx_ip_address_type)
-    error_message = "nsx_ip_address_type must be one of: ephemeral_automatic, ephemeral_custom, reserved_ephemeral, reserved_custom."
+    condition     = contains(["ephemeral_automatic", "ephemeral_custom", "reserved_automatic", "reserved_custom"], var.nsx_ip_address_type)
+    error_message = "nsx_ip_address_type must be one of: ephemeral_automatic, ephemeral_custom, reserved_automatic, reserved_custom."
   }
 }
 
