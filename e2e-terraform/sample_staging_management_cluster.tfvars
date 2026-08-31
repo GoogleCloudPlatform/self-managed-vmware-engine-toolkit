@@ -230,7 +230,7 @@ additional_dynamic_subnets = [
 # Description: Total number of bare-metal ESXi compute nodes provisioned (Management cluster production VCF bringup requires 4 nodes).
 # Valid Values: Integer between 1 and 32.
 # Default Value: 4 (Optional)
-number_of_nodes = 3
+number_of_nodes = 4
 
 # Description: Bare-metal machine type for ESXi host instances.
 # Valid Values:
@@ -255,7 +255,8 @@ domain_name = "gcve-vcf.test.gve."
 node_names = [
   "vcf-mgmt-sample-node-1",
   "vcf-mgmt-sample-node-2",
-  "vcf-mgmt-sample-node-3"
+  "vcf-mgmt-sample-node-3",
+  "vcf-mgmt-sample-node-4"
 ]
 
 # Description: Protects bare-metal host instances from accidental deletion via the GCE API or Terraform destroy operations.
@@ -310,7 +311,7 @@ mgmt_nic_ip_address_type = "reserved_custom"
 # Description: List of explicit IP addresses for Management NICs. Required when mgmt_nic_ip_address_type is "reserved_custom" or "ephemeral_custom" (must contain number_of_nodes entries). Leave empty ([]) for "reserved_automatic" or "ephemeral_automatic".
 # Valid Values: List of valid non-conflicting IPv4 address strings in mgmt_subnet_cidr (e.g., ["10.250.0.3", "10.250.0.4", "10.250.0.5"]).
 # Default Value: [] (Conditional)
-mgmt_nic_ip_values = ["10.250.0.3", "10.250.0.4", "10.250.0.5"]
+mgmt_nic_ip_values = ["10.250.0.3", "10.250.0.4", "10.250.0.5", "10.250.0.6"]
 
 # ------------------------------------------------------------------------------
 # 4.2 vSAN NIC Configuration
@@ -329,7 +330,7 @@ vsan_ip_address_type = "reserved_custom"
 # Description: List of explicit IP addresses for vSAN NICs. Required when vsan_ip_address_type is "reserved_custom" or "ephemeral_custom" (must contain number_of_nodes entries). Leave empty ([]) for "reserved_automatic" or "ephemeral_automatic".
 # Valid Values: List of valid non-conflicting IPv4 address strings in vsan_subnet_cidr.
 # Default Value: [] (Conditional)
-vsan_ip_values = ["10.250.1.3", "10.250.1.4", "10.250.1.5"]
+vsan_ip_values = ["10.250.1.3", "10.250.1.4", "10.250.1.5", "10.250.1.6"]
 
 # ------------------------------------------------------------------------------
 # 4.3 vMotion NIC Configuration
@@ -348,7 +349,7 @@ vmotion_ip_address_type = "reserved_custom"
 # Description: List of explicit IP addresses for vMotion NICs. Required when vmotion_ip_address_type is "reserved_custom" or "ephemeral_custom" (must contain number_of_nodes entries). Leave empty ([]) for "reserved_automatic" or "ephemeral_automatic".
 # Valid Values: List of valid non-conflicting IPv4 address strings in vmotion_subnet_cidr.
 # Default Value: [] (Conditional)
-vmotion_ip_values = ["10.250.2.3", "10.250.2.4", "10.250.2.5"]
+vmotion_ip_values = ["10.250.2.3", "10.250.2.4", "10.250.2.5", "10.250.2.6"]
 
 # ------------------------------------------------------------------------------
 # 4.4 NSX TEP NIC Configuration
@@ -367,7 +368,7 @@ nsx_tep_ip_address_type = "reserved_custom"
 # Description: List of explicit IP addresses for NSX TEP NICs. Required when nsx_tep_ip_address_type is "reserved_custom" or "ephemeral_custom" (must contain number_of_nodes entries). Leave empty ([]) for "reserved_automatic" or "ephemeral_automatic".
 # Valid Values: List of valid IPv4 address strings in nsx_tep_subnet_cidr.
 # Default Value: [] (Conditional)
-nsx_tep_ip_values = ["10.250.3.3", "10.250.3.4", "10.250.3.5"]
+nsx_tep_ip_values = ["10.250.3.3", "10.250.3.4", "10.250.3.5", "10.250.3.6"]
 
 # ------------------------------------------------------------------------------
 # 4.5 Additional Dynamic NICs
@@ -382,7 +383,7 @@ additional_dynamic_nics = [
     subnet_name     = "vcf-mgmt-sample-additional-subnet-1"
     vlan_id         = 210
     ip_address_type = "reserved_custom"
-    ip_values       = ["10.250.4.3", "10.250.4.4", "10.250.4.5"]
+    ip_values       = ["10.250.4.3", "10.250.4.4", "10.250.4.5", "10.250.4.6"]
   }
 ]
 
