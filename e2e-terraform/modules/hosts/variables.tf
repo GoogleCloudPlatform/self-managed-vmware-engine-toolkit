@@ -164,7 +164,7 @@ variable "mgmt_ip_address_type" {
 variable "mgmt_ip_values" {
   type        = list(string)
   default     = []
-  description = "List of explicit IP addresses for Management NICs (required for custom modes)."
+  description = "List of explicit IPv4 address strings for Management NICs in mgmt_subnet_cidr (e.g. ['10.200.0.3', '10.200.0.4']). Required for custom modes (ephemeral_custom, reserved_custom) and must contain number_of_nodes entries. Empty list ([]) for automatic modes."
   validation {
     condition     = alltrue([for ip in var.mgmt_ip_values : ip != null && ip != "" && can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))])
     error_message = "All elements in mgmt_ip_values must be valid non-empty IPv4 address strings."
@@ -209,7 +209,7 @@ variable "vsan_ip_address_type" {
 variable "vsan_ip_values" {
   type        = list(string)
   default     = []
-  description = "List of explicit IP addresses for vSAN NICs (required for custom modes)."
+  description = "List of explicit IPv4 address strings for vSAN NICs in vsan_subnet_cidr (e.g. ['10.200.1.3', '10.200.1.4']). Required for custom modes (ephemeral_custom, reserved_custom) and must contain number_of_nodes entries. Empty list ([]) for automatic modes."
   validation {
     condition     = alltrue([for ip in var.vsan_ip_values : ip != null && ip != "" && can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))])
     error_message = "All elements in vsan_ip_values must be valid non-empty IPv4 address strings."
@@ -254,7 +254,7 @@ variable "vmotion_ip_address_type" {
 variable "vmotion_ip_values" {
   type        = list(string)
   default     = []
-  description = "List of explicit IP addresses for vMotion NICs (required for custom modes)."
+  description = "List of explicit IPv4 address strings for vMotion NICs in vmotion_subnet_cidr (e.g. ['10.200.2.3', '10.200.2.4']). Required for custom modes (ephemeral_custom, reserved_custom) and must contain number_of_nodes entries. Empty list ([]) for automatic modes."
   validation {
     condition     = alltrue([for ip in var.vmotion_ip_values : ip != null && ip != "" && can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))])
     error_message = "All elements in vmotion_ip_values must be valid non-empty IPv4 address strings."
@@ -299,7 +299,7 @@ variable "nsx_tep_ip_address_type" {
 variable "nsx_tep_ip_values" {
   type        = list(string)
   default     = []
-  description = "List of explicit IP addresses for NSX TEP NICs (required for custom modes)."
+  description = "List of explicit IPv4 address strings for NSX TEP NICs in nsx_tep_subnet_cidr (e.g. ['10.200.3.3', '10.200.3.4']). Required for custom modes (ephemeral_custom, reserved_custom) and must contain number_of_nodes entries. Empty list ([]) for automatic modes."
   validation {
     condition     = alltrue([for ip in var.nsx_tep_ip_values : ip != null && ip != "" && can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))])
     error_message = "All elements in nsx_tep_ip_values must be valid non-empty IPv4 address strings."
@@ -325,7 +325,7 @@ variable "additional_dynamic_nics" {
     ip_values       = optional(list(string), [])
   }))
   default     = []
-  description = "List of additional dynamic NIC configurations."
+  description = "List of additional dynamic NIC configurations. ip_values accepts a list of explicit IPv4 address strings (required when ip_address_type is 'ephemeral_custom' or 'reserved_custom', matching number_of_nodes entries; empty list [] for automatic modes)."
   validation {
     condition = alltrue([
       for nic in var.additional_dynamic_nics :

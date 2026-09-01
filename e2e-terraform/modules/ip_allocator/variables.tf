@@ -59,7 +59,7 @@ variable "entities" {
 variable "ip_values" {
   type        = any
   default     = []
-  description = "Optional list of explicit IPs or map of entity name to explicit IP"
+  description = "Explicit IPv4 addresses to allocate. Supported types: 1) list(string) of valid IPv4 address strings (e.g. ['10.200.0.3', '10.200.0.4']), or 2) map(string) of entity/appliance names to valid IPv4 address strings (e.g. {'sddc-manager' = '10.200.0.9'})."
   validation {
     condition = (
       can(keys(var.ip_values)) ? alltrue([
