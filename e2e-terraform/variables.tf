@@ -335,7 +335,7 @@ variable "mgmt_nic_ip_address_type" {
 variable "mgmt_nic_ip_values" {
   type        = list(string)
   default     = []
-  description = "List of explicit IP addresses for Management NICs (required when mgmt_nic_ip_address_type is 'ephemeral_custom' or 'reserved_custom')."
+  description = "List of explicit IPv4 address strings for Management NICs in mgmt_subnet_cidr (e.g. ['10.200.0.3', '10.200.0.4']). Required when mgmt_nic_ip_address_type is custom ('ephemeral_custom' or 'reserved_custom') and must contain number_of_nodes entries. Leave empty ([]) for automatic modes ('ephemeral_automatic' or 'reserved_automatic')."
   validation {
     condition     = alltrue([for ip in var.mgmt_nic_ip_values : ip != null && ip != "" && can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))])
     error_message = "All elements in mgmt_nic_ip_values must be valid non-empty IPv4 address strings."
@@ -366,7 +366,7 @@ variable "vsan_ip_address_type" {
 variable "vsan_ip_values" {
   type        = list(string)
   default     = []
-  description = "List of explicit IP addresses for vSAN NICs (required when vsan_ip_address_type is 'ephemeral_custom' or 'reserved_custom')."
+  description = "List of explicit IPv4 address strings for vSAN NICs in vsan_subnet_cidr (e.g. ['10.200.1.3', '10.200.1.4']). Required when vsan_ip_address_type is custom ('ephemeral_custom' or 'reserved_custom') and must contain number_of_nodes entries. Leave empty ([]) for automatic modes ('ephemeral_automatic' or 'reserved_automatic')."
   validation {
     condition     = alltrue([for ip in var.vsan_ip_values : ip != null && ip != "" && can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))])
     error_message = "All elements in vsan_ip_values must be valid non-empty IPv4 address strings."
@@ -397,7 +397,7 @@ variable "vmotion_ip_address_type" {
 variable "vmotion_ip_values" {
   type        = list(string)
   default     = []
-  description = "List of explicit IP addresses for vMotion NICs (required when vmotion_ip_address_type is 'ephemeral_custom' or 'reserved_custom')."
+  description = "List of explicit IPv4 address strings for vMotion NICs in vmotion_subnet_cidr (e.g. ['10.200.2.3', '10.200.2.4']). Required when vmotion_ip_address_type is custom ('ephemeral_custom' or 'reserved_custom') and must contain number_of_nodes entries. Leave empty ([]) for automatic modes ('ephemeral_automatic' or 'reserved_automatic')."
   validation {
     condition     = alltrue([for ip in var.vmotion_ip_values : ip != null && ip != "" && can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))])
     error_message = "All elements in vmotion_ip_values must be valid non-empty IPv4 address strings."
@@ -428,7 +428,7 @@ variable "nsx_tep_ip_address_type" {
 variable "nsx_tep_ip_values" {
   type        = list(string)
   default     = []
-  description = "List of explicit IP addresses for NSX TEP NICs (required when nsx_tep_ip_address_type is 'ephemeral_custom' or 'reserved_custom')."
+  description = "List of explicit IPv4 address strings for NSX TEP NICs in nsx_tep_subnet_cidr (e.g. ['10.200.3.3', '10.200.3.4']). Required when nsx_tep_ip_address_type is custom ('ephemeral_custom' or 'reserved_custom') and must contain number_of_nodes entries. Leave empty ([]) for automatic modes ('ephemeral_automatic' or 'reserved_automatic')."
   validation {
     condition     = alltrue([for ip in var.nsx_tep_ip_values : ip != null && ip != "" && can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))])
     error_message = "All elements in nsx_tep_ip_values must be valid non-empty IPv4 address strings."
@@ -445,7 +445,7 @@ variable "additional_dynamic_nics" {
     ip_values       = optional(list(string), [])
   }))
   default     = []
-  description = "List of customer-defined dynamic VLAN interfaces to attach to bare-metal compute instances."
+  description = "List of customer-defined dynamic VLAN interfaces to attach to bare-metal compute instances. ip_values accepts a list of explicit IPv4 address strings (required when ip_address_type is 'ephemeral_custom' or 'reserved_custom', matching number_of_nodes entries; empty list [] for automatic modes)."
   validation {
     condition = alltrue([
       for nic in var.additional_dynamic_nics :
@@ -474,7 +474,7 @@ variable "mgmt_ip_address_type" {
 variable "mgmt_ip_values" {
   type        = map(string)
   default     = {}
-  description = "Map of management appliance names to explicit IP addresses (e.g. sddc-manager, vcenter, nsx-manager)."
+  description = "Map of management appliance names to IP values in mgmt_subnet_cidr. Supported input value formats per entry: 1) Single explicit IPv4 address (e.g. '10.200.0.9'), 2) IPv4 address range string 'start_ip-end_ip' (e.g. '10.200.0.50-10.200.0.80') which expands to individual sequential entries (<name>-1, <name>-2, ...), 3) Positive integer count string (e.g. '6') which allocates N automatic IPs (<name>-1, ..., <name>-N) for automatic modes, or 4) Empty string '' for automatic single IP allocation."
 }
 
 variable "nsx_ip_address_type" {
@@ -490,6 +490,6 @@ variable "nsx_ip_address_type" {
 variable "nsx_ip_values" {
   type        = map(string)
   default     = {}
-  description = "Map of NSX datapath appliance names to explicit IP addresses (e.g. uplink-vip-ip, edge-node-1-uplink-ip)."
+  description = "Map of NSX datapath/edge appliance names to IP values in nsx_tep_subnet_cidr. Supported input value formats per entry: 1) Single explicit IPv4 address (e.g. '10.200.3.10'), 2) IPv4 address range string 'start_ip-end_ip' (e.g. '10.200.3.50-10.200.3.60') which expands to individual sequential entries (<name>-1, <name>-2, ...), 3) Positive integer count string (e.g. '2') which allocates N automatic IPs (<name>-1, ..., <name>-N) for automatic modes, or 4) Empty string '' for automatic single IP allocation."
 }
 

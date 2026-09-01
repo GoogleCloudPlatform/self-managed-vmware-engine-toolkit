@@ -393,10 +393,11 @@ additional_dynamic_nics = [
 # ==============================================================================
 # Supported IP modes and required map structures for appliance inputs:
 #   - For "reserved_custom" or "ephemeral_custom": Provide a map of appliance names mapped
-#     to static IPv4 addresses within the subnetwork CIDR (e.g., { "vcenter" = "10.250.0.11", "cloudproxy" = "10.250.0.10" }).
+#     to static IPv4 addresses within the subnetwork CIDR (e.g., { "vcenter" = "10.250.0.11", "cloudproxy" = "10.250.0.10" }),
+#     or an IPv4 range string (e.g., { "vcf-service-runtime" = "10.250.0.50-10.250.0.80" }) which automatically expands into sequential entries.
 #   - For "reserved_automatic" or "ephemeral_automatic": Provide a map of appliance names mapped
-#     to empty string values "" (e.g., { "vcenter" = "", "cloudproxy" = "" }), allowing GCP
-#     to automatically allocate IP addresses from the subnetwork CIDR while creating the required forwarding rules.
+#     to empty string values "" (e.g., { "vcenter" = "", "cloudproxy" = "" }), or a positive integer count string
+#     (e.g., { "vcf-automation-node-ips" = "6" }) allowing GCP to automatically allocate IP addresses from the subnetwork CIDR while creating the required forwarding rules.
 #   - If no appliances of that type are required, provide an empty map `{}`.
 # ==============================================================================
 
@@ -409,34 +410,35 @@ additional_dynamic_nics = [
 # Default Value: "ephemeral_automatic" (Optional)
 mgmt_ip_address_type = "reserved_custom"
 
-# Description: Map of management appliance names to static IP addresses in mgmt_subnet_cidr (for custom modes) or empty strings "" (for automatic modes). Forwarding rules and DNS A/PTR records are created for each entry.
-# Valid Values: Map of string appliance names to valid IPv4 address strings (or empty strings "") within mgmt_subnet_cidr.
+# Description: Map of management appliance names to IP values in mgmt_subnet_cidr. Supported formats: explicit IPv4 string (for custom modes), IPv4 range string 'start_ip-end_ip' (for custom range allocation), positive integer count string (for automatic N-node pool allocation), or empty string "" (for single automatic allocation). Forwarding rules and DNS A/PTR records are created for each entry.
+# Valid Values: Map of string appliance names to valid IPv4 address strings, IP range strings, integer count strings, or empty strings ("") within mgmt_subnet_cidr.
 # Default Value: {} (Optional)
 mgmt_ip_values = {
   # VCF Control Plane Core Services
-  "vcf"                 = "10.250.0.9"  # VCF Bringup / Installer VIP
-  "cloudproxy"          = "10.250.0.10" # VMware Cloud Proxy Appliance
-  "vcenter"             = "10.250.0.11" # Management vCenter Server Appliance (VCSA)
-  "vcf-license"         = "10.250.0.16" # VCF License Manager Service
-  "vcf-instance"        = "10.250.0.17" # VCF Instance Service Manager
-  "identity-broker"     = "10.250.0.18" # VMware Workspace ONE Access / Identity Broker
-  "vcf-service-runtime" = "10.250.0.19" # VCF Service Runtime Platform
+  "sddc-manager"        = "10.250.0.9"              # VCF SDDC Manager Appliance
+  "cloudproxy"          = "10.250.0.10"             # VMware Cloud Proxy Appliance
+  "vcenter"             = "10.250.0.11"             # Management vCenter Server Appliance (VCSA)
+  "vcf-license"         = "10.250.0.16"             # VCF License Manager Service
+  "vcf-instance"        = "10.250.0.17"             # VCF Instance Service Manager
+  "identity-broker"     = "10.250.0.18"             # VMware Workspace ONE Access / Identity Broker
+  "vcf-service-runtime" = "10.250.0.50-10.250.0.80" # VCF Service Runtime Platform IP Pool
 
   # VMware Aria Suite Operations & Automation Services
-  "vcfops-p"      = "10.250.0.12" # VMware Aria Operations Primary Node
-  "vcffleet"      = "10.250.0.13" # VMware Aria Operations Fleet Management Service
-  "vcfautomation" = "10.250.0.20" # VMware Aria Automation Core Appliance (Required if and only if VCF Automation deployment is intended)
-  "vcfruntime"    = "10.250.0.21" # VMware Aria Automation Orchestrator Runtime (Required if and only if VCF Automation deployment is intended)
-  "vcfops-r"      = "10.250.0.24" # VMware Aria Operations Replica Node
-  "vcfops-d"      = "10.250.0.25" # VMware Aria Operations Data Analytics Node
+  "vcfops-p" = "10.250.0.12" # VMware Aria Operations Primary Node
+  "vcffleet" = "10.250.0.13" # VMware Aria Operations Fleet Management Service
+  # "vcfautomation"          = "10.250.0.20" # VMware Aria Automation Core Appliance (Required if and only if VCF Automation deployment is intended)
+  # "vcfruntime"             = "10.250.0.21" # VMware Aria Automation Orchestrator Runtime (Required if and only if VCF Automation deployment is intended)
+  # "vcf-automation-node-ips" = "10.250.0.81-10.250.0.86" # VCF Automation Cluster Node IP Pool (6 nodes, required if and only if VCF Automation is deployed)
+  "vcfops-r" = "10.250.0.24" # VMware Aria Operations Replica Node
+  "vcfops-d" = "10.250.0.25" # VMware Aria Operations Data Analytics Node
 
   # NSX Management Cluster & Management Interfaces
-  "nsx"       = "10.250.0.14" # NSX Management Cluster Floating Virtual IP (VIP)
-  "nsx-0"     = "10.250.0.15" # NSX Manager Node 1 Management IP
-  "nsx-1"     = "10.250.0.22" # NSX Manager Node 2 Management IP
-  "nsx-2"     = "10.250.0.23" # NSX Manager Node 3 Management IP
-  "nsx-edge1" = "10.250.0.26" # NSX Edge Node 1 Management Interface (Required if and only if NSX Edge appliance is being deployed)
-  "nsx-edge2" = "10.250.0.27" # NSX Edge Node 2 Management Interface (Required if and only if NSX Edge appliance is being deployed)
+  "nsx"   = "10.250.0.14" # NSX Management Cluster Floating Virtual IP (VIP)
+  "nsx-0" = "10.250.0.15" # NSX Manager Node 1 Management IP
+  "nsx-1" = "10.250.0.22" # NSX Manager Node 2 Management IP
+  "nsx-2" = "10.250.0.23" # NSX Manager Node 3 Management IP
+  # "nsx-edge1" = "10.250.0.26" # NSX Edge Node 1 Management Interface (Required if and only if NSX Edge appliance is being deployed)
+  # "nsx-edge2" = "10.250.0.27" # NSX Edge Node 2 Management Interface (Required if and only if NSX Edge appliance is being deployed)
 }
 
 # ------------------------------------------------------------------------------
@@ -448,14 +450,14 @@ mgmt_ip_values = {
 # Default Value: "ephemeral_automatic" (Optional)
 nsx_ip_address_type = "reserved_custom"
 
-# Description: Map of NSX datapath & Edge appliance names to static IP addresses in nsx_tep_subnet_cidr (for custom modes) or empty strings "" (for automatic modes). Forwarding rules are created for each entry. All appliances in nsx_ip_values are required if and only if NSX Edge appliance is being deployed.
-# Valid Values: Map of string appliance names to valid IPv4 address strings (or empty strings "") within nsx_tep_subnet_cidr.
+# Description: Map of NSX datapath & Edge appliance names to static IP addresses in nsx_tep_subnet_cidr (for custom modes), IP ranges, positive integer count strings, or empty strings "" (for automatic modes). Forwarding rules are created for each entry. All appliances in nsx_ip_values are required if and only if NSX Edge appliance is being deployed.
+# Valid Values: Map of string appliance names to valid IPv4 address strings, IP range strings, integer count strings, or empty strings ("") within nsx_tep_subnet_cidr.
 # Default Value: {} (Optional)
 nsx_ip_values = {
   # All appliances below are required if and only if NSX Edge appliance is being deployed
-  "uplink-vip-ip"         = "10.250.3.10" # NSX Edge Cluster Uplink Virtual Floating IP (Required iff NSX Edge is deployed)
-  "edge-node-1-uplink-ip" = "10.250.3.11" # NSX Edge Node 1 External BGP/Uplink IP (Required iff NSX Edge is deployed)
-  "edge-node-1-tep-ip"    = "10.250.3.12" # NSX Edge Node 1 Geneve Overlay Tunnel Endpoint (TEP) (Required iff NSX Edge is deployed)
-  "edge-node-2-uplink-ip" = "10.250.3.13" # NSX Edge Node 2 External BGP/Uplink IP (Required iff NSX Edge is deployed)
-  "edge-node-2-tep-ip"    = "10.250.3.14" # NSX Edge Node 2 Geneve Overlay Tunnel Endpoint (TEP) (Required iff NSX Edge is deployed)
+  # "uplink-vip-ip"         = "10.250.3.10" # NSX Edge Cluster Uplink Virtual Floating IP (Required iff NSX Edge is deployed)
+  # "edge-node-1-uplink-ip" = "10.250.3.11" # NSX Edge Node 1 External BGP/Uplink IP (Required iff NSX Edge is deployed)
+  # "edge-node-1-tep-ip"    = "10.250.3.12" # NSX Edge Node 1 Geneve Overlay Tunnel Endpoint (TEP) (Required iff NSX Edge is deployed)
+  # "edge-node-2-uplink-ip" = "10.250.3.13" # NSX Edge Node 2 External BGP/Uplink IP (Required iff NSX Edge is deployed)
+  # "edge-node-2-tep-ip"    = "10.250.3.14" # NSX Edge Node 2 Geneve Overlay Tunnel Endpoint (TEP) (Required iff NSX Edge is deployed)
 }

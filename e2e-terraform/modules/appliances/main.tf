@@ -21,12 +21,81 @@ terraform {
 }
 
 locals {
-  # Dynamically derive appliance lists directly from user-supplied input maps
-  mgmt_appliances      = keys(var.mgmt_ip_values)
-  mgmt_appliance_count = length(local.mgmt_appliances)
+  # ----------------------------------------------------------------------------
+  # 1. Precomputed Integer Bounds for IP Range Strings ("start_ip-end_ip")
+  # ----------------------------------------------------------------------------
+  range_entries_metadata = {
+    for k, v in merge(var.mgmt_ip_values, var.nsx_ip_values) : k => {
+      start_int = (
+        parseint(split(".", split("-", v)[0])[0], 10) * 16777216 +
+        parseint(split(".", split("-", v)[0])[1], 10) * 65536 +
+        parseint(split(".", split("-", v)[0])[2], 10) * 256 +
+        parseint(split(".", split("-", v)[0])[3], 10)
+      )
+      end_int = (
+        parseint(split(".", split("-", v)[1])[0], 10) * 16777216 +
+        parseint(split(".", split("-", v)[1])[1], 10) * 65536 +
+        parseint(split(".", split("-", v)[1])[2], 10) * 256 +
+        parseint(split(".", split("-", v)[1])[3], 10)
+      )
+    }
+    if can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}-(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", v))
+  }
 
-  nsx_appliances      = keys(var.nsx_ip_values)
+  # ----------------------------------------------------------------------------
+  # 2. Unified Expansion Pipeline for Management & NSX Datapath Appliances
+  # ----------------------------------------------------------------------------
+  expanded_appliances = {
+    for group, ip_map in { mgmt = var.mgmt_ip_values, nsx = var.nsx_ip_values } : group => flatten([
+      for name, val in ip_map : (
+        # Case A: IPv4 Range (e.g., "10.200.0.50-10.200.0.80") -> <name>-1, <name>-2, ...
+        can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}-(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", val)) ? [
+          for i in range(local.range_entries_metadata[name].end_int - local.range_entries_metadata[name].start_int + 1) : {
+            name = (local.range_entries_metadata[name].end_int - local.range_entries_metadata[name].start_int + 1) == 1 ? name : "${name}-${i + 1}"
+            ip = format(
+              "%d.%d.%d.%d",
+              floor((local.range_entries_metadata[name].start_int + i) / 16777216) % 256,
+              floor((local.range_entries_metadata[name].start_int + i) / 65536) % 256,
+              floor((local.range_entries_metadata[name].start_int + i) / 256) % 256,
+              (local.range_entries_metadata[name].start_int + i) % 256
+            )
+          }
+          ] : (
+          # Case B: Positive Integer Count (e.g., "6") -> <name>-1..6 with automatic IP allocation
+          can(regex("^[1-9][0-9]*$", val)) ? [
+            for i in range(parseint(val, 10)) : {
+              name = parseint(val, 10) == 1 ? name : "${name}-${i + 1}"
+              ip   = ""
+            }
+            ] : [
+            # Case C: Single Static IP ("10.200.0.9") or Empty String ("") -> single entity
+            {
+              name = name
+              ip   = val
+            }
+          ]
+        )
+      )
+    ])
+  }
+
+  mgmt_expanded_entities = local.expanded_appliances["mgmt"]
+  nsx_expanded_entities  = local.expanded_appliances["nsx"]
+
+  # Dynamically derive appliance lists directly from user-supplied input maps
+  mgmt_appliances      = [for item in local.mgmt_expanded_entities : item.name]
+  mgmt_appliance_count = length(local.mgmt_appliances)
+  mgmt_entity_ip_map = {
+    for item in local.mgmt_expanded_entities : item.name => item.ip
+    if item.ip != ""
+  }
+
+  nsx_appliances      = [for item in local.nsx_expanded_entities : item.name]
   nsx_appliance_count = length(local.nsx_appliances)
+  nsx_entity_ip_map = {
+    for item in local.nsx_expanded_entities : item.name => item.ip
+    if item.ip != ""
+  }
 
   # All configured appliance IP mappings directly from forwarding rules
   mgmt_appliance_ips = {
@@ -43,8 +112,10 @@ locals {
 
   # DNS records are created only for the IPs mentioned in the management appliances
   appliance_dns_records = {
-    for name, ip in local.mgmt_appliance_ips : name => ip
-    if trimspace(try(var.mgmt_ip_values[name], "")) != "" && try(var.mgmt_ip_values[name], null) != null
+    for item in local.mgmt_expanded_entities : item.name => (
+      item.ip != "" ? item.ip : local.mgmt_appliance_ips[item.name]
+    )
+    if item.ip != "" || (var.mgmt_ip_address_type != "reserved_custom" && var.mgmt_ip_address_type != "ephemeral_custom")
   }
 
   appliance_ptr_record_names = {
@@ -87,7 +158,7 @@ module "mgmt_ip_allocator" {
   address_name_template = "%s-%s-ip"
   ip_address_type       = var.mgmt_ip_address_type
   entities              = local.mgmt_appliances
-  ip_values             = var.mgmt_ip_values
+  ip_values             = local.mgmt_entity_ip_map
 }
 
 module "nsx_ip_allocator" {
@@ -99,7 +170,7 @@ module "nsx_ip_allocator" {
   address_name_template = "%s-%s-ip"
   ip_address_type       = var.nsx_ip_address_type
   entities              = local.nsx_appliances
-  ip_values             = var.nsx_ip_values
+  ip_values             = local.nsx_entity_ip_map
 }
 
 # ==============================================================================
@@ -239,10 +310,10 @@ check "validate_appliance_dns_zones" {
 check "validate_appliance_mgmt_ips_in_subnet" {
   assert {
     condition = alltrue([
-      for ip in values(var.mgmt_ip_values) :
-      ip == "" || !can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip)) || (
-        (parseint(split(".", ip)[0], 10) * 16777216 + parseint(split(".", ip)[1], 10) * 65536 + parseint(split(".", ip)[2], 10) * 256 + parseint(split(".", ip)[3], 10)) >= local.mgmt_cidr_start_int &&
-        (parseint(split(".", ip)[0], 10) * 16777216 + parseint(split(".", ip)[1], 10) * 65536 + parseint(split(".", ip)[2], 10) * 256 + parseint(split(".", ip)[3], 10)) < local.mgmt_cidr_end_int
+      for item in local.mgmt_expanded_entities :
+      item.ip == "" || (
+        (parseint(split(".", item.ip)[0], 10) * 16777216 + parseint(split(".", item.ip)[1], 10) * 65536 + parseint(split(".", item.ip)[2], 10) * 256 + parseint(split(".", item.ip)[3], 10)) >= local.mgmt_cidr_start_int &&
+        (parseint(split(".", item.ip)[0], 10) * 16777216 + parseint(split(".", item.ip)[1], 10) * 65536 + parseint(split(".", item.ip)[2], 10) * 256 + parseint(split(".", item.ip)[3], 10)) < local.mgmt_cidr_end_int
       )
     ])
     error_message = "Configured Management appliance IP addresses in mgmt_ip_values do not belong to the management subnet CIDR (${var.mgmt_subnet_cidr})."
@@ -252,10 +323,10 @@ check "validate_appliance_mgmt_ips_in_subnet" {
 check "validate_appliance_nsx_ips_in_subnet" {
   assert {
     condition = alltrue([
-      for ip in values(var.nsx_ip_values) :
-      ip == "" || !can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip)) || (
-        (parseint(split(".", ip)[0], 10) * 16777216 + parseint(split(".", ip)[1], 10) * 65536 + parseint(split(".", ip)[2], 10) * 256 + parseint(split(".", ip)[3], 10)) >= local.nsx_tep_cidr_start_int &&
-        (parseint(split(".", ip)[0], 10) * 16777216 + parseint(split(".", ip)[1], 10) * 65536 + parseint(split(".", ip)[2], 10) * 256 + parseint(split(".", ip)[3], 10)) < local.nsx_tep_cidr_end_int
+      for item in local.nsx_expanded_entities :
+      item.ip == "" || (
+        (parseint(split(".", item.ip)[0], 10) * 16777216 + parseint(split(".", item.ip)[1], 10) * 65536 + parseint(split(".", item.ip)[2], 10) * 256 + parseint(split(".", item.ip)[3], 10)) >= local.nsx_tep_cidr_start_int &&
+        (parseint(split(".", item.ip)[0], 10) * 16777216 + parseint(split(".", item.ip)[1], 10) * 65536 + parseint(split(".", item.ip)[2], 10) * 256 + parseint(split(".", item.ip)[3], 10)) < local.nsx_tep_cidr_end_int
       )
     ])
     error_message = "Configured NSX datapath appliance IP addresses in nsx_ip_values do not belong to the NSX TEP subnet CIDR (${var.nsx_tep_subnet_cidr})."
