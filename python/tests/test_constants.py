@@ -63,6 +63,10 @@ class TestConstants(unittest.TestCase):
         constants.VCFConfigKeys.OFFLINE_DEPOT_SUBNET_CIDR,
         "offline_depot_subnet_cidr",
     )
+    self.assertEqual(
+        constants.VCFConfigKeys.DNS_SERVER,
+        "dns_server",
+    )
 
     for key in (
         constants.VCFConfigKeys.TARGET_GCE_NODE,
@@ -73,6 +77,11 @@ class TestConstants(unittest.TestCase):
         constants.VCFConfigKeys.OFFLINE_DEPOT_SUBNET_CIDR,
     ):
       self.assertIn(key, constants.VCFConfigKeys.REQUIRED_KEYS)
+
+    self.assertNotIn(
+        constants.VCFConfigKeys.DNS_SERVER,
+        constants.VCFConfigKeys.REQUIRED_KEYS,
+    )
 
   def test_defaults(self):
     """Verifies retry and deployment operational defaults."""

@@ -37,6 +37,18 @@ class TestModels(unittest.TestCase):
     self.assertEqual(vcf_cfg.vcf_installer_fqdn, "sddc-manager.lab.local")
     self.assertEqual(vcf_cfg.vcf_installer_ip_source, "vcf-ip")
     self.assertEqual(vcf_cfg.offline_depot_subnet_cidr, "10.0.100.0/29")
+    self.assertIsNone(vcf_cfg.dns_server)
+
+    vcf_cfg_with_dns = models.VCFDeploymentConfig(
+        target_gce_node="esxi-1",
+        vcf_appliance_root_password_secret="vcf-root",
+        vcf_appliance_local_user_password_secret="vcf-local",
+        vcf_installer_fqdn="sddc-manager.lab.local",
+        vcf_installer_ip_source="vcf-ip",
+        offline_depot_subnet_cidr="10.0.100.0/29",
+        dns_server="10.0.0.2",
+    )
+    self.assertEqual(vcf_cfg_with_dns.dns_server, "10.0.0.2")
 
   def test_deployer_config_instantiation_and_helpers(self):
     """Verifies master DeployerConfig dataclass, region property, and path helpers."""

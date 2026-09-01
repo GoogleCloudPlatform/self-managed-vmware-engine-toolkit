@@ -208,6 +208,7 @@ def load_config(config_file_path: str) -> models.DeployerConfig:
             constants.VCFConfigKeys.VCF_INSTALLER_IP_SOURCE
         ],
         offline_depot_subnet_cidr=cidr,
+        dns_server=vcf_data.get(constants.VCFConfigKeys.DNS_SERVER),
     )
 
   config = models.DeployerConfig(
@@ -321,6 +322,7 @@ def run_pipeline(config_file_path: str) -> int:
                 fqdn=config.vcf_deployment_config.vcf_installer_fqdn,
                 domain=ctx.vcf_domain,
                 searchpath=ctx.vcf_searchpath,
+                dns_server=ctx.dns_server,
             )
 
           # Phase 2e: VM Power On & IP Acquisition monitoring

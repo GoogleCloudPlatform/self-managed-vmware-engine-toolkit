@@ -94,6 +94,25 @@ class TestVMDeployer(unittest.TestCase):
     self.assertIn(
         'oe:key="vami.gateway.SDDC-Manager" oe:value="10.0.0.1"', xml_str
     )
+    self.assertIn(
+        'oe:key="vami.DNS.SDDC-Manager" oe:value="169.254.169.254"', xml_str
+    )
+
+    xml_str_custom_dns = self.vm_dep._marshal_ovf_properties(
+        sddc_manager_ip="10.0.0.50",
+        gateway="10.0.0.1",
+        netmask="255.255.255.0",
+        root_pwd="RootP@ssword123!",
+        local_pwd="LocalP@ssword123!",
+        fqdn="sddc-manager.lab.local",
+        domain="lab.local",
+        searchpath="lab.local",
+        dns_server="10.0.0.2",
+    )
+    self.assertIn(
+        'oe:key="vami.DNS.SDDC-Manager" oe:value="10.0.0.2"',
+        xml_str_custom_dns,
+    )
 
   @mock.patch("vcf_deployer.vm_deployer.vim")
   def test_power_on_vm_already_on(self, mock_vim):
@@ -222,7 +241,7 @@ class TestVMDeployer(unittest.TestCase):
 
   @mock.patch.object(vm_deployer.VMDeployer, "_inject_guestinfo")
   def test_configure_ovf_environment(self, mock_inject):
-    """Verifies Phase 2d configure_ovf_environment orchestrator."""
+    """Verifies Phase 2d configure_ovf_environment orchestrator with default metadata DNS."""
     mock_vm = mock.MagicMock()
     self.vm_dep.configure_ovf_environment(
         vm_reference=mock_vm,
@@ -236,6 +255,32 @@ class TestVMDeployer(unittest.TestCase):
         searchpath="lab.local",
     )
     mock_inject.assert_called_once()
+    payload = mock_inject.call_args[0][1]
+    self.assertIn(
+        'oe:key="vami.DNS.SDDC-Manager" oe:value="169.254.169.254"', payload
+    )
+
+  @mock.patch.object(vm_deployer.VMDeployer, "_inject_guestinfo")
+  def test_configure_ovf_environment_with_custom_dns_server(self, mock_inject):
+    """Verifies Phase 2d configure_ovf_environment orchestrator with custom DNS server."""
+    mock_vm = mock.MagicMock()
+    self.vm_dep.configure_ovf_environment(
+        vm_reference=mock_vm,
+        sddc_manager_ip="10.0.0.50",
+        gateway="10.0.0.1",
+        netmask="255.255.255.0",
+        root_pwd="RootP@ssword123!",
+        local_pwd="LocalP@ssword123!",
+        fqdn="sddc-manager.lab.local",
+        domain="lab.local",
+        searchpath="lab.local",
+        dns_server="10.0.0.2",
+    )
+    mock_inject.assert_called_once()
+    payload = mock_inject.call_args[0][1]
+    self.assertIn(
+        'oe:key="vami.DNS.SDDC-Manager" oe:value="10.0.0.2"', payload
+    )
 
   @mock.patch.object(vm_deployer.VMDeployer, "_poll_for_guest_ip")
   @mock.patch.object(vm_deployer.VMDeployer, "_power_on_vm")

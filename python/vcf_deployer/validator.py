@@ -138,6 +138,16 @@ class PreDeploymentValidator:
     # 8. Offline Depot SSL Thumbprint capture via HTTPS testing connection
     thumbprint = network_utils.capture_ssl_thumbprint(ova_url)
 
+    # 9. Validate optional custom DNS server format if provided
+    if vcf_cfg.dns_server:
+      try:
+        ipaddress.IPv4Address(vcf_cfg.dns_server.strip())
+      except ValueError as exc:
+        raise models.ValidationError(
+            f"Invalid dns_server '{vcf_cfg.dns_server}': must be a valid IPv4"
+            " address."
+        ) from exc
+
     logger.info(
         "Phase 1 validation completed successfully (VLAN: %d, CIDR: %s).",
         vlan_id,
@@ -159,6 +169,7 @@ class PreDeploymentValidator:
         ssl_thumbprint=thumbprint,
         vcf_appliance_root_password=vcf_root,
         vcf_appliance_local_password=vcf_local,
+        dns_server=vcf_cfg.dns_server,
     )
 
   def _inspect_single_node(

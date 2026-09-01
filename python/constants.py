@@ -50,6 +50,7 @@ class VCFConfigKeys:
   OFFLINE_DEPOT_SUBNET_CIDR = "offline_depot_subnet_cidr"
   FORWARDING_RULE = "forwarding_rule"
   RESERVED_ADDRESS = "reserved_address"
+  DNS_SERVER = "dns_server"
 
   REQUIRED_KEYS: Tuple[str, ...] = (
       TARGET_GCE_NODE,
