@@ -391,6 +391,7 @@ class VMDeployer:
       fqdn: str,
       domain: str,
       searchpath: str,
+      dns_server: Optional[str] = None,
   ) -> None:
     """Executes Phase 2d OVF environment configuration injection for deployed VM."""
     logger.info(
@@ -399,6 +400,12 @@ class VMDeployer:
         sddc_manager_ip,
     )
     self.esxi.connect_pyvmomi()
+
+    effective_dns_server = (
+        dns_server
+        if dns_server
+        else constants.NetworkingDefaults.DEFAULT_METADATA_SERVER
+    )
 
     xml_payload = self._marshal_ovf_properties(
         sddc_manager_ip=sddc_manager_ip,
@@ -409,6 +416,7 @@ class VMDeployer:
         fqdn=fqdn,
         domain=domain,
         searchpath=searchpath,
+        dns_server=effective_dns_server,
     )
 
     self._inject_guestinfo(vm_reference, xml_payload)

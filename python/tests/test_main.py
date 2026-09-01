@@ -95,6 +95,35 @@ class TestMain(unittest.TestCase):
           config.vcf_deployment_config.vcf_installer_fqdn,
           "sddc-manager.lab.local",
       )
+      self.assertIsNone(config.vcf_deployment_config.dns_server)
+    finally:
+      os.remove(temp_path)
+
+  def test_load_config_with_custom_dns_server(self):
+    """Verifies loading config with custom optional dns_server in vcf_deployment_config."""
+    valid_data = {
+        "project": "p",
+        "zone": "z",
+        "gce_nodes": ["esxi-1"],
+        "esxi_root_password_secret": "esxi-root",
+        "vcf_deployment_config": {
+            "target_gce_node": "esxi-1",
+            "offline_depot_subnet_cidr": "10.0.100.0/29",
+            "vcf_appliance_root_password_secret": "vcf-root",
+            "vcf_appliance_local_user_password_secret": "vcf-local",
+            "vcf_installer_fqdn": "sddc-manager.lab.local",
+            "vcf_installer_ip_source": {"reserved_address": "vcf-ip"},
+            "dns_server": "10.0.0.2",
+        },
+    }
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
+      json.dump(valid_data, tf)
+      temp_path = tf.name
+
+    try:
+      config = main_mod.load_config(temp_path)
+      self.assertIsNotNone(config.vcf_deployment_config)
+      self.assertEqual(config.vcf_deployment_config.dns_server, "10.0.0.2")
     finally:
       os.remove(temp_path)
 
@@ -304,6 +333,7 @@ class TestMain(unittest.TestCase):
         ssl_thumbprint="AA:BB:CC",
         vcf_appliance_root_password="VCFRootP@ssword123!",
         vcf_appliance_local_password="VCFLocalP@ssword123!",
+        dns_server="10.0.0.2",
     )
     mock_val_inst = mock.MagicMock()
     mock_val_inst.validate_and_extract.return_value = mock_ctx
@@ -326,7 +356,18 @@ class TestMain(unittest.TestCase):
     mock_net_mgr.return_value.configure_networking.assert_called_once()
     mock_vsan_mgr.return_value.setup_vsan.assert_called_once()
     mock_vm_mgr.return_value.deploy_ova.assert_called_once()
-    mock_vm_mgr.return_value.configure_ovf_environment.assert_called_once()
+    mock_vm_mgr.return_value.configure_ovf_environment.assert_called_once_with(
+        vm_reference=mock_vm_mgr.return_value.deploy_ova.return_value,
+        sddc_manager_ip="10.0.0.50",
+        gateway="10.0.0.1",
+        netmask="255.255.255.0",
+        root_pwd="VCFRootP@ssword123!",
+        local_pwd="VCFLocalP@ssword123!",
+        fqdn="sddc-manager.lab.local",
+        domain="lab.local",
+        searchpath="lab.local",
+        dns_server="10.0.0.2",
+    )
     mock_vm_mgr.return_value.power_on_and_wait_for_ip.assert_called_once()
     mock_pwd_mgr.return_value.reset_esxi_inventory_passwords.assert_called_once()
 

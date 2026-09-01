@@ -47,6 +47,15 @@ locals {
     ])
   ])
 
+  # Management subnet Cloud DNS Inbound Forwarding Reserved IP
+  mgmt_dns_reserved_ips = [
+    for ip in module.vpc.dns_reserved_ips : ip
+    if(module.subnets.mgmt_subnet_cidr != null && module.subnets.mgmt_subnet_cidr != "") && (
+      cidrhost(format("%s/%s", ip, split("/", module.subnets.mgmt_subnet_cidr)[1]), 0) == cidrhost(module.subnets.mgmt_subnet_cidr, 0)
+    )
+  ]
+  mgmt_dns_reserved_ip = length(local.mgmt_dns_reserved_ips) > 0 ? local.mgmt_dns_reserved_ips[0] : null
+
   # Host ESXi nodes FQDN and IP mapping
   node_hosts_mapping = {
     for i, name in module.hosts.node_names : name => {
@@ -198,28 +207,40 @@ output "cluster_network_host_ips" {
 
 output "python_scripts_input_config" {
   value = {
-    # List of all provisioned bare-metal ESXi host instance self links
-    gce_instances_list = module.hosts.node_self_links
+    # GCP Project ID
+    project = var.project_id
+
+    # GCP Compute Engine Zone
+    zone = var.zone
+
+    # List of all provisioned bare-metal ESXi host instance names
+    gce_nodes = module.hosts.node_names
 
     # Secret Manager secret resource path containing the ESXi root password
-    esxi_root_password_sm_path = "<user_should_input>"
+    esxi_root_password_secret = "<user_should_input>"
 
     # VCF Deployment and initialization parameters
     vcf_deployment_config = {
       # Target bare-metal instance name to host the initial deployment workloads
-      target_gce_instance_name = "<user_should_input>"
+      target_gce_node = length(module.hosts.node_names) > 0 ? module.hosts.node_names[0] : "<user_should_input>"
+
+      # Subnet CIDR for the Offline Depot PSC endpoint
+      offline_depot_subnet_cidr = "<user_should_input>"
 
       # Secret Manager secret resource path containing the VCF appliance root password
-      vcf_appliance_root_password_sm_path = "<user_should_input>"
+      vcf_appliance_root_password_secret = "<user_should_input>"
 
       # Secret Manager secret resource path containing the VCF appliance local user password
-      vcf_appliance_local_user_password_sm_path = "<user_should_input>"
+      vcf_appliance_local_user_password_secret = "<user_should_input>"
 
-      # IP address of the SDDC Manager (VCF Installer) forwarding rule
-      vcf_installer_ip = lookup(module.appliances.management_forwarding_rule_ips, "sddc-manager", lookup(module.appliances.management_forwarding_rule_ips, "vcf", null))
+      # Forwarding rule resource for SDDC Manager / VCF Installer
+      vcf_installer_ip_source = lookup(module.appliances.management_forwarding_rules, "sddc-manager", lookup(module.appliances.management_forwarding_rules, "vcf", lookup(module.appliances.management_forwarding_rules, "cloudproxy", null)))
 
       # Fully qualified domain name of the SDDC Manager (VCF Installer)
       vcf_installer_fqdn = "sddc-manager.${local.formatted_domain}"
+
+      # Cloud DNS Inbound Reserved IP for the management subnet
+      dns_server = local.mgmt_dns_reserved_ip
     }
   }
   description = "Input configuration schema and populated values for Python post-deployment automation scripts"

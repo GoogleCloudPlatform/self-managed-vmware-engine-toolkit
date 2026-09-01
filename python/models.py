@@ -64,6 +64,7 @@ class VCFDeploymentConfig:
   vcf_installer_fqdn: str
   vcf_installer_ip_source: Any
   offline_depot_subnet_cidr: str
+  dns_server: Optional[str] = None
 
 
 @dataclasses.dataclass
@@ -164,6 +165,7 @@ class ValidationContext:
   ssl_thumbprint: Optional[str] = None
   vcf_appliance_root_password: Optional[str] = None
   vcf_appliance_local_password: Optional[str] = None
+  dns_server: Optional[str] = None
 
 
 # ==============================================================================
