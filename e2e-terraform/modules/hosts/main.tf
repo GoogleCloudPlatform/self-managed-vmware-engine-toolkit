@@ -196,7 +196,7 @@ resource "google_compute_disk" "boot_disks" {
   zone                   = var.zone
   image                  = var.esxi_image
   type                   = "hyperdisk-balanced"
-  size                   = 128
+  size                   = 64
   provisioned_iops       = 10000 # IOPS (I/O operations per second)
   provisioned_throughput = 290   # Throughput in MB/s
 
