@@ -34,14 +34,6 @@ provider "google" {
   zone    = local.zone
 }
 
-provider "google" {
-  alias                   = "alpha"
-  project                 = local.project_id
-  region                  = local.region
-  zone                    = local.zone
-  compute_custom_endpoint = "https://www.googleapis.com/compute/alpha/"
-}
-
 # ==============================================================================
 # 1. VPC Module: Network Creation, Firewall Rules, DNS Zones & Policy
 # ==============================================================================
@@ -74,9 +66,6 @@ module "vpc" {
 module "subnets" {
   source = "./modules/subnets"
 
-  providers = {
-    google.alpha = google.alpha
-  }
 
   project_id              = var.project_id
   region                  = var.region
@@ -116,9 +105,6 @@ module "subnets" {
 module "hosts" {
   source = "./modules/hosts"
 
-  providers = {
-    google.alpha = google.alpha
-  }
 
   project_id           = var.project_id
   region               = var.region

@@ -15,8 +15,7 @@
 terraform {
   required_providers {
     google = {
-      source                = "hashicorp/google"
-      configuration_aliases = [google.alpha]
+      source = "hashicorp/google"
     }
   }
 }
@@ -309,7 +308,6 @@ resource "google_compute_instance" "nodes" {
 
 # Attach host instances to Management NEG (batch resource for all nodes - only in cluster_creation mode)
 resource "google_compute_network_endpoints" "mgmt_endpoints" {
-  provider               = google.alpha
   count                  = (var.deployment_mode == "cluster_creation" && var.mgmt_neg_name != null && var.mgmt_neg_name != "") ? 1 : 0
   project                = var.project_id
   network_endpoint_group = var.mgmt_neg_name
@@ -326,7 +324,6 @@ resource "google_compute_network_endpoints" "mgmt_endpoints" {
 
 # Attach host instances to NSX TEP NEG (batch resource for all nodes - only in cluster_creation mode)
 resource "google_compute_network_endpoints" "nsx_endpoints" {
-  provider               = google.alpha
   count                  = (var.deployment_mode == "cluster_creation" && var.nsx_neg_name != null && var.nsx_neg_name != "") ? 1 : 0
   project                = var.project_id
   network_endpoint_group = var.nsx_neg_name
