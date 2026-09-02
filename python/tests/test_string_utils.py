@@ -91,6 +91,25 @@ class TestStringUtils(unittest.TestCase):
       )
     self.assertIn("fails complexity verification", str(ctx.exception))
 
+  def test_audit_password_contains_username_failure(self):
+    """Verifies ValidationError when password contains default root username."""
+    # Complies with length (>= 7) and classes (4 classes), but contains 'root'
+    invalid_passwords = [
+        "ValidP@ssw0rd_root",   # lower at end
+        "root_ValidP@ssw0rd!",  # lower at start
+        "ValidRootP@ssw0rd1!",  # TitleCase
+        "VALID_ROOT_P@SSW0RD1", # UPPERCASE
+    ]
+    for pwd in invalid_passwords:
+      with self.subTest(pwd=pwd):
+        with self.assertRaises(models.ValidationError) as ctx:
+          string_utils.audit_password(
+              "esxi_root", pwd, min_len=7, max_len=39, min_classes=3
+          )
+        self.assertIn("must not contain", str(ctx.exception))
+        # Explicitly verify it didn't throw complexity error (guards against message swapping)
+        self.assertNotIn("fails complexity verification", str(ctx.exception))
+
   def test_parse_vcf_version_from_image_valid(self):
     """Verifies semantic version parsing from standard ESXi boot image names."""
     self.assertEqual(
