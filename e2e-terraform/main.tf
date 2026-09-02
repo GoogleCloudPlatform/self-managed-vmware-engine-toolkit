@@ -58,6 +58,11 @@ module "vpc" {
   create_gcp_subnet   = var.create_gcp_subnet
   gcp_subnet_name     = var.gcp_subnet_name
   gcp_subnet_cidr     = var.gcp_subnet_cidr
+  # Cloud DNS Zones, GCP Subnet & Inbound Policy
+  setup_cloud_dns     = var.setup_cloud_dns
+  create_gcp_subnet   = var.create_gcp_subnet
+  gcp_subnet_name     = var.gcp_subnet_name
+  gcp_subnet_cidr     = var.gcp_subnet_cidr
   create_dns_zones    = var.create_dns_zones
   dns_policy_name     = var.dns_policy_name
   domain_name         = var.domain_name

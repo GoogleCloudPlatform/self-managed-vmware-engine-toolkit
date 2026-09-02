@@ -97,7 +97,11 @@ create_firewalls = true
 # 2.1 Cloud DNS Managed Zones, Records, GCP Subnet & Inbound Policy Creation
 # ------------------------------------------------------------------------------
 
+<<<<<<< HEAD
 # Description: Master switch determining whether to set up Cloud DNS forward (A) and reverse (PTR) records, managed zones, and inbound DNS resolution policy for bare-metal ESXi hosts and VCF/NSX appliances. If setup_cloud_dns is set to false, the entire DNS-related section in the input (create_gcp_subnet, gcp_subnet_name, gcp_subnet_cidr, create_dns_zones, forward_zone_name, reverse_zone_name, reverse_domain_name, dns_ttl, ntp_ip) can be skipped, and dns_server in python_scripts_input_config will be output as "<user_should_input>".
+=======
+# Description: Master switch determining whether to set up Cloud DNS forward (A) and reverse (PTR) records, managed zones, and inbound DNS resolution policy for bare-metal ESXi hosts and VCF/NSX appliances. If setup_cloud_dns is set to false, the entire DNS-related section in the input (create_gcp_subnet, gcp_subnet_name, gcp_subnet_cidr, create_dns_zones, forward_zone_name, reverse_zone_name, reverse_domain_name, dns_ttl) can be skipped, and dns_server in python_scripts_input_config will be output as "<user_should_input>".
+>>>>>>> 0ddfb5f (e2e-terraform: Rename create_dns_records to setup_cloud_dns and support GCP subnet creation/reference)
 # Valid Values: true, false
 # Default Value: true (Optional)
 setup_cloud_dns = true

@@ -19,6 +19,7 @@ locals {
   # All active subnets in the VPC
   all_vpc_subnet_names = compact(concat([
     module.vpc.gcp_subnet_name,
+    module.vpc.gcp_subnet_name,
     module.subnets.mgmt_subnet_name,
     module.subnets.vsan_subnet_name,
     module.subnets.vmotion_subnet_name,
