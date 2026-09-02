@@ -87,7 +87,7 @@ class TestOfflineDepotInfraManager(unittest.TestCase):
         network="projects/test-project/global/networks/test-vpc",
         subnet_uri="projects/test-project/regions/us-central1/subnetworks/offline-depot-subnet-us-central1",
         ip_address_link="projects/test-project/regions/us-central1/addresses/offline-depot-psc-ip-us-central1",
-        target_service_attachment="projects/smve-offline-depot/regions/us-central1/serviceAttachments/offline-depot-service-attachment-us-central1",
+        target_service_attachment="projects/smve-prod-offline-depot/regions/us-central1/serviceAttachments/offline-depot-service-attachment-us-central1",
     )
     self.mock_gcp.create_offline_depot_private_dns_zone_and_record.assert_called_once_with(
         project="test-project",

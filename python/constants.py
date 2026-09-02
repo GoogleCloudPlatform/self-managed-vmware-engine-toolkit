@@ -187,7 +187,7 @@ class OfflineDepotDefaults:
 
   # Regional Service Attachment URI by environment
   SERVICE_ATTACHMENT_TEMPLATES: Dict[str, str] = {
-      "prod": "projects/smve-offline-depot/regions/{region}/serviceAttachments/offline-depot-service-attachment-{region}",
+      "prod": "projects/smve-prod-offline-depot/regions/{region}/serviceAttachments/offline-depot-service-attachment-{region}",
       "staging": "projects/smve-staging-offline-depot/regions/{region}/serviceAttachments/offline-depot-service-attachment-{region}",
       "autopush": "projects/smve-autopush-offline-depot/regions/{region}/serviceAttachments/offline-depot-service-attachment-{region}",
   }
