@@ -47,6 +47,7 @@ class VCFConfigKeys:
   )
   VCF_INSTALLER_FQDN = "vcf_installer_fqdn"
   VCF_INSTALLER_IP_SOURCE = "vcf_installer_ip_source"
+  OFFLINE_DEPOT_SUBNET_NAME = "offline_depot_subnet_name"
   OFFLINE_DEPOT_SUBNET_CIDR = "offline_depot_subnet_cidr"
   FORWARDING_RULE = "forwarding_rule"
   RESERVED_ADDRESS = "reserved_address"
