@@ -17,6 +17,9 @@ terraform {
     google = {
       source = "hashicorp/google"
     }
+    time = {
+      source = "hashicorp/time"
+    }
   }
 }
 
@@ -187,13 +190,25 @@ resource "google_dns_policy" "dns_policy" {
   depends_on = [google_compute_network.vpc]
 }
 
+# Wait for GCP to asynchronously allocate and reserve Cloud DNS Inbound Forwarding IP addresses in the subnetworks
+resource "time_sleep" "wait_for_dns_resolvers" {
+  count = local.create_dns_policy ? 1 : 0
+
+  create_duration = "30s"
+
+  depends_on = [google_dns_policy.dns_policy]
+}
+
 # Look up Cloud DNS Inbound Forwarding reserved IP addresses created by the DNS policy (or existing in VPC)
 data "google_compute_addresses" "dns_resolvers" {
   project = var.project_id
   region  = var.region
   filter  = "purpose=\"DNS_RESOLVER\""
 
-  depends_on = [google_dns_policy.dns_policy]
+  depends_on = [
+    google_dns_policy.dns_policy,
+    time_sleep.wait_for_dns_resolvers
+  ]
 }
 
 # ==============================================================================
