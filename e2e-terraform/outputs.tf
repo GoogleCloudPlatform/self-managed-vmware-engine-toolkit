@@ -17,6 +17,7 @@ locals {
 
   # All active subnets in the VPC
   all_vpc_subnet_names = compact(concat([
+    module.vpc.gcp_subnet_name,
     module.subnets.mgmt_subnet_name,
     module.subnets.vsan_subnet_name,
     module.subnets.vmotion_subnet_name,
@@ -24,6 +25,7 @@ locals {
   ], [for s in values(module.subnets.dynamic_subnets) : s.name]))
 
   all_vpc_subnet_self_links = compact(concat([
+    module.vpc.gcp_subnet_self_link,
     module.subnets.mgmt_subnet_self_link,
     module.subnets.vsan_subnet_self_link,
     module.subnets.vmotion_subnet_self_link,
@@ -32,6 +34,7 @@ locals {
 
   # All active subnet CIDRs in the VPC
   all_vpc_subnet_cidrs = compact(concat([
+    module.vpc.gcp_subnet_cidr,
     module.subnets.mgmt_subnet_cidr,
     module.subnets.vsan_subnet_cidr,
     module.subnets.vmotion_subnet_cidr,
@@ -47,14 +50,14 @@ locals {
     ])
   ])
 
-  # Management subnet Cloud DNS Inbound Forwarding Reserved IP
-  mgmt_dns_reserved_ips = [
+  # GCP subnet Cloud DNS Inbound Forwarding Reserved IP
+  gcp_dns_reserved_ips = [
     for ip in module.vpc.dns_reserved_ips : ip
-    if(module.subnets.mgmt_subnet_cidr != null && module.subnets.mgmt_subnet_cidr != "") && (
-      cidrhost(format("%s/%s", ip, split("/", module.subnets.mgmt_subnet_cidr)[1]), 0) == cidrhost(module.subnets.mgmt_subnet_cidr, 0)
+    if(module.vpc.gcp_subnet_cidr != null && module.vpc.gcp_subnet_cidr != "") && (
+      cidrhost(format("%s/%s", ip, split("/", module.vpc.gcp_subnet_cidr)[1]), 0) == cidrhost(module.vpc.gcp_subnet_cidr, 0)
     )
   ]
-  mgmt_dns_reserved_ip = length(local.mgmt_dns_reserved_ips) > 0 ? local.mgmt_dns_reserved_ips[0] : null
+  gcp_dns_reserved_ip = length(local.gcp_dns_reserved_ips) > 0 ? local.gcp_dns_reserved_ips[0] : null
 
   # Host ESXi nodes FQDN and IP mapping
   node_hosts_mapping = {
@@ -93,6 +96,7 @@ output "gcp_resources_self_links" {
     # VPC Network and L2 Subnetworks
     vpc = {
       network         = module.vpc.vpc_network_self_link
+      gcp_subnet      = module.vpc.gcp_subnet_self_link
       primary_subnet  = module.subnets.mgmt_subnet_self_link
       vsan_subnet     = module.subnets.vsan_subnet_self_link
       vmotion_subnet  = module.subnets.vmotion_subnet_self_link
@@ -224,8 +228,11 @@ output "python_scripts_input_config" {
       # Target bare-metal instance name to host the initial deployment workloads
       target_gce_node = length(module.hosts.node_names) > 0 ? module.hosts.node_names[0] : "<user_should_input>"
 
-      # Subnet CIDR for the Offline Depot PSC endpoint
-      offline_depot_subnet_cidr = "<user_should_input>"
+      # Subnet name for the Offline Depot PSC endpoint. The Python script checks if this subnet exists and uses it, or creates it if it does not already exist. Set to gcp_subnet_name if setup_cloud_dns is true.
+      offline_depot_subnet_name = var.setup_cloud_dns ? module.vpc.gcp_subnet_name : "<user_should_input>"
+
+      # Subnet CIDR for the Offline Depot PSC endpoint. Set to gcp_subnet_cidr if setup_cloud_dns is true.
+      offline_depot_subnet_cidr = var.setup_cloud_dns ? module.vpc.gcp_subnet_cidr : "<user_should_input>"
 
       # Secret Manager secret resource path containing the VCF appliance root password
       vcf_appliance_root_password_secret = "<user_should_input>"
@@ -239,8 +246,8 @@ output "python_scripts_input_config" {
       # Fully qualified domain name of the SDDC Manager (VCF Installer)
       vcf_installer_fqdn = "sddc-manager.${local.formatted_domain}"
 
-      # Cloud DNS Inbound Reserved IP for the management subnet
-      dns_server = local.mgmt_dns_reserved_ip
+      # Cloud DNS Inbound Reserved IP for the GCP subnet (populated when setup_cloud_dns is true; set to '<user_should_input>' when setup_cloud_dns is false)
+      dns_server = var.setup_cloud_dns ? local.gcp_dns_reserved_ip : "<user_should_input>"
     }
   }
   description = "Input configuration schema and populated values for Python post-deployment automation scripts"

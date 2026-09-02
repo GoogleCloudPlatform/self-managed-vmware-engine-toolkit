@@ -64,13 +64,31 @@ variable "create_firewalls" {
 }
 
 # ------------------------------------------------------------------------------
-# Cloud DNS Managed Zones, Records & Inbound Policy Creation
+# Cloud DNS Managed Zones, Records, GCP Subnet & Inbound Policy Creation
 # ------------------------------------------------------------------------------
 
-variable "create_dns_records" {
+variable "setup_cloud_dns" {
   type        = bool
   default     = true
   description = "Whether to create Cloud DNS forward (A) and reverse (PTR) records for ESXi hosts and appliances."
+}
+
+variable "create_gcp_subnet" {
+  type        = bool
+  default     = true
+  description = "Whether to create a dedicated standard GCP subnetwork (without resolve_subnet_mask) for Cloud DNS inbound resolver IP reservation and Offline Depot PSC endpoint (true) or reference an existing subnetwork (false)."
+}
+
+variable "gcp_subnet_name" {
+  type        = string
+  default     = null
+  description = "Resource name of the GCP subnetwork for DNS resolution and offline depot (created if create_gcp_subnet = true, else referenced). Defaults to '<resource_name_prefix>-gcp-subnet' if null."
+}
+
+variable "gcp_subnet_cidr" {
+  type        = string
+  default     = null
+  description = "IPv4 CIDR range for the GCP subnetwork (e.g. '10.0.100.0/29')."
 }
 
 variable "create_dns_zones" {
@@ -94,13 +112,13 @@ variable "reverse_domain_name" {
 variable "forward_zone_name" {
   type        = string
   default     = null
-  description = "Resource name of the forward managed DNS zone (created if create_dns_zones = true). If create_dns_zones is false and create_dns_records is true, this existing zone name must be provided."
+  description = "Resource name of the forward managed DNS zone (created if create_dns_zones = true). If create_dns_zones is false and setup_cloud_dns is true, this existing zone name must be provided."
 }
 
 variable "reverse_zone_name" {
   type        = string
   default     = null
-  description = "Resource name of the reverse managed DNS zone (created if create_dns_zones = true). If create_dns_zones is false and create_dns_records is true, this existing zone name must be provided."
+  description = "Resource name of the reverse managed DNS zone (created if create_dns_zones = true). If create_dns_zones is false and setup_cloud_dns is true, this existing zone name must be provided."
 }
 
 variable "dns_policy_name" {

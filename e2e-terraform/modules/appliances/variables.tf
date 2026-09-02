@@ -138,7 +138,7 @@ variable "nsx_ip_values" {
 # Cloud DNS Record Configuration for Appliances
 # ------------------------------------------------------------------------------
 
-variable "create_dns_records" {
+variable "setup_cloud_dns" {
   type        = bool
   default     = true
   description = "Whether to create Cloud DNS forward (A) and reverse (PTR) records for appliances."
@@ -163,13 +163,13 @@ variable "reverse_domain_name" {
 variable "forward_zone_name" {
   type        = string
   default     = null
-  description = "Forward Cloud DNS managed zone name. When provided and create_dns_records is true, forward A records are created for all appliances."
+  description = "Forward Cloud DNS managed zone name. When provided and setup_cloud_dns is true, forward A records are created for all appliances."
 }
 
 variable "reverse_zone_name" {
   type        = string
   default     = null
-  description = "Reverse Cloud DNS managed zone name. When provided and create_dns_records is true, reverse PTR records are created for all appliances."
+  description = "Reverse Cloud DNS managed zone name. When provided and setup_cloud_dns is true, reverse PTR records are created for all appliances."
 }
 
 variable "dns_ttl" {
