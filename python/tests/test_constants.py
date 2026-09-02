@@ -60,6 +60,10 @@ class TestConstants(unittest.TestCase):
         "vcf_installer_ip_source",
     )
     self.assertEqual(
+        constants.VCFConfigKeys.OFFLINE_DEPOT_SUBNET_NAME,
+        "offline_depot_subnet_name",
+    )
+    self.assertEqual(
         constants.VCFConfigKeys.OFFLINE_DEPOT_SUBNET_CIDR,
         "offline_depot_subnet_cidr",
     )
@@ -78,6 +82,10 @@ class TestConstants(unittest.TestCase):
     ):
       self.assertIn(key, constants.VCFConfigKeys.REQUIRED_KEYS)
 
+    self.assertNotIn(
+        constants.VCFConfigKeys.OFFLINE_DEPOT_SUBNET_NAME,
+        constants.VCFConfigKeys.REQUIRED_KEYS,
+    )
     self.assertNotIn(
         constants.VCFConfigKeys.DNS_SERVER,
         constants.VCFConfigKeys.REQUIRED_KEYS,

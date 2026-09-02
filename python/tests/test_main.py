@@ -127,6 +127,83 @@ class TestMain(unittest.TestCase):
     finally:
       os.remove(temp_path)
 
+  def test_load_config_with_custom_offline_depot_subnet_name(self):
+    """Verifies loading config with custom optional offline_depot_subnet_name."""
+    valid_data = {
+        "project": "p",
+        "zone": "z",
+        "gce_nodes": ["esxi-1"],
+        "esxi_root_password_secret": "esxi-root",
+        "vcf_deployment_config": {
+            "target_gce_node": "esxi-1",
+            "offline_depot_subnet_name": "my-depot-subnet",
+            "offline_depot_subnet_cidr": "10.0.100.0/29",
+            "vcf_appliance_root_password_secret": "vcf-root",
+            "vcf_appliance_local_user_password_secret": "vcf-local",
+            "vcf_installer_fqdn": "sddc-manager.lab.local",
+            "vcf_installer_ip_source": {"reserved_address": "vcf-ip"},
+            "dns_server": "10.0.0.2",
+        },
+    }
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
+      json.dump(valid_data, tf)
+      temp_path = tf.name
+
+    try:
+      config = main_mod.load_config(temp_path)
+      self.assertIsNotNone(config.vcf_deployment_config)
+      self.assertEqual(
+          config.vcf_deployment_config.offline_depot_subnet_name,
+          "my-depot-subnet",
+      )
+      self.assertEqual(
+          config.vcf_deployment_config.offline_depot_subnet_cidr,
+          "10.0.100.0/29",
+      )
+      self.assertEqual(config.vcf_deployment_config.dns_server, "10.0.0.2")
+    finally:
+      os.remove(temp_path)
+
+  def test_load_config_with_inline_and_block_comments(self):
+    """Verifies that load_config successfully strips // and /* */ comments."""
+    jsonc_data = """{
+      // Target GCP Project ID
+      "project": "p",
+      /* Zone */
+      "zone": "z",
+      "gce_nodes": ["esxi-1"], // node list
+      "esxi_root_password_secret": "esxi-root"
+    }"""
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
+      tf.write(jsonc_data)
+      temp_path = tf.name
+
+    try:
+      config = main_mod.load_config(temp_path)
+      self.assertEqual(config.project, "p")
+      self.assertEqual(config.zone, "z")
+    finally:
+      os.remove(temp_path)
+
+  def test_load_example_configs(self):
+    """Verifies that all sample config JSON files in python/examples load cleanly."""
+    examples_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "examples"
+    )
+    for fname in [
+        "config_explicit_nodes.json",
+        "config_prefix_filter.json",
+        "config_subnet_filter.json",
+    ]:
+      fpath = os.path.join(examples_dir, fname)
+      config = main_mod.load_config(fpath)
+      self.assertIsNotNone(config)
+      self.assertEqual(config.project, "my-gcp-project")
+      self.assertEqual(
+          config.vcf_deployment_config.offline_depot_subnet_name,
+          "offline-depot-subnet-us-central1",
+      )
+
   def test_load_config_with_prefix_dict(self):
     """Verifies loading config with gce_nodes as dict containing prefix."""
     data = {

@@ -64,6 +64,7 @@ class VCFDeploymentConfig:
   vcf_installer_fqdn: str
   vcf_installer_ip_source: Any
   offline_depot_subnet_cidr: str
+  offline_depot_subnet_name: Optional[str] = None
   dns_server: Optional[str] = None
 
 

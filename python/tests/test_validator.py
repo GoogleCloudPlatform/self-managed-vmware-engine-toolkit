@@ -699,6 +699,85 @@ class TestPreDeploymentValidator(unittest.TestCase):
   @mock.patch.object(validator.PreDeploymentValidator, "_derive_vcf_ova_url")
   @mock.patch("utils.network_utils.capture_ssl_thumbprint")
   @mock.patch("utils.network_utils.extract_vlan_cidr_and_routing")
+  def test_validate_and_extract_with_custom_offline_depot_subnet_name(
+      self,
+      mock_extract_vlan,
+      mock_capture_thumbprint,
+      mock_derive_url,
+      mock_infra_mgr_cls,
+  ):
+    """Verifies validate_and_extract passes custom offline_depot_subnet_name to OfflineDepotInfraManager."""
+    self.mock_config.gce_nodes = ["esxi-1"]
+    self.mock_config.project = "p"
+    self.mock_config.zone = "z"
+    self.mock_config.get_full_node_path.side_effect = lambda inst: f"projects/p/zones/z/instances/{inst}"
+    self.mock_config.get_full_secret_path.side_effect = lambda s: f"secrets/{s}"
+    vcf_cfg = models.VCFDeploymentConfig(
+        target_gce_node="esxi-1",
+        vcf_appliance_root_password_secret="vcf-root",
+        vcf_appliance_local_user_password_secret="vcf-local",
+        vcf_installer_fqdn="sddc-manager.lab.local",
+        vcf_installer_ip_source={"forwarding_rule": "fr-1"},
+        offline_depot_subnet_name="my-custom-depot-subnet",
+        offline_depot_subnet_cidr="10.0.100.0/29",
+    )
+    self.mock_config.vcf_deployment_config = vcf_cfg
+    self.mock_config.esxi_root_password_secret = "esxi-root"
+
+    mock_details = models.GCEInstanceDetails(
+        instance_resource_string="projects/p/zones/z/instances/esxi-1",
+        short_name="esxi-1",
+        project="p",
+        zone="z",
+        primary_ip="10.0.0.5",
+        boot_image_name="esxi-5-1-1-12345",
+        subnetworks=[
+            models.SubnetworkInfo(
+                subnetwork_uri="projects/p/regions/z/subnetworks/sub-1",
+                vlan_id=0,
+                network_uri="projects/p/global/networks/vpc-1",
+                cidr="10.0.0.0/24",
+            )
+        ],
+        tags=["mm-gcve-node"],
+        tags_fingerprint="fp_tag",
+        labels={"gcve-node": "true"},
+        label_fingerprint="fp_label",
+    )
+    self.mock_gcp.get_instance_details.return_value = mock_details
+    self.mock_gcp.get_secret_payload.side_effect = [
+        "ValidESXiRoot123!",
+        "ComplexVCF_Root_P@ssword123",
+        "ComplexVCF_Local_P@ss123",
+    ]
+    mock_infra_mgr_cls.return_value.setup_offline_depot_infrastructure.return_value = {
+        "psc_ip": "10.0.100.2",
+        "fqdn": "offline-depot.z.selfmanagedvmwareengine.goog.",
+        "subnet_uri": "projects/p/regions/z/subnetworks/sub-1",
+    }
+    self.mock_gcp.resolve_ip_source.return_value = "10.0.0.50"
+    mock_derive_url.return_value = "https://10.0.100.2/vcf.ova"
+    mock_extract_vlan.return_value = (
+        100,
+        "10.0.0.0/24",
+        "255.255.255.0",
+        "10.0.0.1",
+    )
+    mock_capture_thumbprint.return_value = "AA:BB:CC:DD"
+
+    self.validator.validate_and_extract()
+    mock_infra_mgr_cls.assert_called_once_with(
+        config=self.mock_config,
+        gcp=self.mock_gcp,
+        vpc_network="projects/p/global/networks/vpc-1",
+        cidr="10.0.100.0/29",
+        subnet_name="my-custom-depot-subnet",
+    )
+
+  @mock.patch("vcf_deployer.validator.offline_depot_infra.OfflineDepotInfraManager")
+  @mock.patch.object(validator.PreDeploymentValidator, "_derive_vcf_ova_url")
+  @mock.patch("utils.network_utils.capture_ssl_thumbprint")
+  @mock.patch("utils.network_utils.extract_vlan_cidr_and_routing")
   def test_validate_and_extract_invalid_dns_server_raises_validation_error(
       self,
       mock_extract_vlan,

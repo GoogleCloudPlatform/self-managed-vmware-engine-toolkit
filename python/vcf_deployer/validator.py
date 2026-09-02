@@ -99,6 +99,7 @@ class PreDeploymentValidator:
         gcp=self.gcp,
         vpc_network=discovered_vpc,
         cidr=vcf_cfg.offline_depot_subnet_cidr,
+        subnet_name=vcf_cfg.offline_depot_subnet_name,
     )
     depot_infra = infra_mgr.setup_offline_depot_infrastructure()
     depot_ip = depot_infra.get("psc_ip") if depot_infra else None

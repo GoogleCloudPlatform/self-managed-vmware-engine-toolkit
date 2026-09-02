@@ -158,5 +158,27 @@ class TestOfflineDepotInfraManager(unittest.TestCase):
     )
 
 
+  @mock.patch.dict("os.environ", {}, clear=True)
+  def test_setup_offline_depot_infrastructure_custom_subnet_name(self):
+    """Verifies that a custom subnet_name is forwarded to create_offline_depot_subnetwork."""
+    custom_mgr = offline_depot_infra.OfflineDepotInfraManager(
+        config=self.mock_config,
+        gcp=self.mock_gcp,
+        vpc_network="projects/test-project/global/networks/test-vpc",
+        cidr="10.0.100.0/29",
+        subnet_name="custom-depot-subnet",
+    )
+    res = custom_mgr.setup_offline_depot_infrastructure()
+
+    self.assertEqual(res["psc_ip"], "10.0.100.2")
+    self.mock_gcp.create_offline_depot_subnetwork.assert_called_once_with(
+        project="test-project",
+        region="us-central1",
+        name="custom-depot-subnet",
+        network="projects/test-project/global/networks/test-vpc",
+        ip_cidr_range="10.0.100.0/29",
+    )
+
+
 if __name__ == "__main__":
   unittest.main()

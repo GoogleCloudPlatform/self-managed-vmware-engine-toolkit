@@ -11,6 +11,7 @@ import argparse
 import json
 import logging
 import random
+import re
 import sys
 import time
 from typing import Any, Callable
@@ -129,7 +130,11 @@ def load_config(config_file_path: str) -> models.DeployerConfig:
   )
   try:
     with open(config_file_path, "r", encoding="utf-8") as file:
-      data = json.load(file)
+      content = file.read()
+      # Strip JS/JSONC comments (// ... and /* ... */)
+      content = re.sub(r"//.*", "", content)
+      content = re.sub(r"/\*.*?\*/", "", content, flags=re.DOTALL)
+      data = json.loads(content)
   except Exception as exc:
     raise models.ValidationError(
         "Failed to read or decode JSON configuration file at"
@@ -208,6 +213,9 @@ def load_config(config_file_path: str) -> models.DeployerConfig:
             constants.VCFConfigKeys.VCF_INSTALLER_IP_SOURCE
         ],
         offline_depot_subnet_cidr=cidr,
+        offline_depot_subnet_name=vcf_data.get(
+            constants.VCFConfigKeys.OFFLINE_DEPOT_SUBNET_NAME
+        ),
         dns_server=vcf_data.get(constants.VCFConfigKeys.DNS_SERVER),
     )
 

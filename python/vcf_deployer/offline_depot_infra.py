@@ -6,7 +6,7 @@ creation, and environment-aware Cloud DNS Private Zone and A-record management.
 """
 
 import logging
-from typing import Dict
+from typing import Dict, Optional
 
 from clients import gcp_client
 import constants
@@ -26,6 +26,7 @@ class OfflineDepotInfraManager:
       gcp: gcp_client.GCPClient,
       vpc_network: str,
       cidr: str,
+      subnet_name: Optional[str] = None,
   ) -> None:
     """Initializes manager with master config, GCP client, VPC URI, and CIDR.
 
@@ -34,11 +35,13 @@ class OfflineDepotInfraManager:
         gcp: Initialized GCPClient instance.
         vpc_network: Resource URI of the customer VPC network.
         cidr: Subnet IPv4 CIDR range (e.g. '10.0.100.0/29').
+        subnet_name: Optional custom subnetwork name for the offline depot.
     """
     self.config = config
     self.gcp = gcp
     self.vpc_network = vpc_network
     self.cidr = cidr
+    self.subnet_name = subnet_name
 
   def setup_offline_depot_infrastructure(self) -> Dict[str, str]:
     """Executes Steps 1-4 for offline depot PSC and private DNS connectivity.
@@ -68,13 +71,17 @@ class OfflineDepotInfraManager:
 
     # Step 1: Subnet Verification / Creation
     network_utils.validate_subnet_cidr_size(self.cidr)
-    subnet_name = constants.OfflineDepotDefaults.SUBNET_NAME_TEMPLATE.format(
-        region=region
+    effective_subnet_name = (
+        self.subnet_name
+        if self.subnet_name
+        else constants.OfflineDepotDefaults.SUBNET_NAME_TEMPLATE.format(
+            region=region
+        )
     )
     subnet_uri = self.gcp.create_offline_depot_subnetwork(
         project=project,
         region=region,
-        name=subnet_name,
+        name=effective_subnet_name,
         network=self.vpc_network,
         ip_cidr_range=self.cidr,
     )
