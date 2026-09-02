@@ -131,6 +131,11 @@ def audit_password(
         f"Secret '{name}' fails complexity verification: required {min_classes}"
         f" character classes, found {class_count} classes."
     )
+  if constants.PasswordResetDefaults.DEFAULT_ROOT_USER.lower() in pwd.lower():
+    raise models.ValidationError(
+        f"Secret '{name}' fails validation: ESXi password must not contain"
+        " ESXi username."
+    )
 
 
 def parse_vcf_version_from_image(image_name: str) -> str:
