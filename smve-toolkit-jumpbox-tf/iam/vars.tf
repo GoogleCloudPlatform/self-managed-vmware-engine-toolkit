@@ -51,3 +51,11 @@ variable "jumpbox_script_runner" {
     error_message = "The jumpbox_script_runner identity can only be a human user (e.g., 'user:operator@example.com' or 'operator@example.com'). Service accounts ('serviceAccount:...' or ending with '.gserviceaccount.com') are not permitted."
   }
 }
+
+variable "drift_manager_producer_project_id" {
+  type        = string
+  description = "The producer project ID for GCVE Drift Manager Service Agent. Defaults to 'gcp-sa-network-drift' (production), or 'gcp-sa-staging-network-drift' / 'gcp-sa-autopush-network-drift' for non-production environments."
+  default     = "gcp-sa-network-drift"
+}
+
+

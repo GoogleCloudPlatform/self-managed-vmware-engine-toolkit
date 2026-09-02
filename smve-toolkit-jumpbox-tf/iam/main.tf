@@ -84,14 +84,36 @@ resource "google_project_iam_member" "jumpbox_ssh_user_roles" {
 # Roles granted:
 #   - roles/secretmanager.secretAccessor (to retrieve passwords from GCP Secret Manager)
 #   - roles/compute.admin (to query/manage GCE bare metal host state)
+#   - roles/resourcemanager.projectIamAdmin (to grant required permissions to Drift Manager P4SA)
 # ------------------------------------------------------------------------------
 resource "google_project_iam_member" "jumpbox_script_runner_roles" {
   for_each = toset([
     "roles/secretmanager.secretAccessor",
-    "roles/compute.admin"
+    "roles/compute.admin",
+    "roles/resourcemanager.projectIamAdmin"
   ])
 
   project = var.project_id
   role    = each.key
   member  = local.formatted_jumpbox_script_runner
 }
+
+# ------------------------------------------------------------------------------
+# IAM Bindings for GCVE Drift Manager Per-Product Per-Project Service Account (P4SA)
+# Role granted:
+#   - roles/compute.networkAdmin (to discover VPCs/subnets, resolve instances/forwarding rules,
+#     and update Regional Backend Service leaders during IP move reconciliation)
+# ------------------------------------------------------------------------------
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
+resource "google_project_iam_member" "drift_manager_p4sa_roles" {
+  project = var.project_id
+  role    = "roles/compute.networkAdmin"
+  member  = "serviceAccount:service-${data.google_project.project.number}@${var.drift_manager_producer_project_id}.iam.gserviceaccount.com"
+}
+
+
+
+
