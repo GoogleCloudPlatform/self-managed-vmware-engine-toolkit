@@ -343,7 +343,7 @@ resource "google_compute_network_endpoints" "nsx_endpoints" {
 # ==============================================================================
 
 resource "google_dns_record_set" "node_forward_a_records" {
-  for_each     = (var.create_dns_records && var.forward_zone_name != null && var.forward_zone_name != "") ? local.esxi_hosts_dns_map : {}
+  for_each     = (var.setup_cloud_dns && var.forward_zone_name != null && var.forward_zone_name != "") ? local.esxi_hosts_dns_map : {}
   project      = var.project_id
   name         = "${each.key}.${local.formatted_domain_name}"
   managed_zone = var.forward_zone_name
@@ -355,7 +355,7 @@ resource "google_dns_record_set" "node_forward_a_records" {
 }
 
 resource "google_dns_record_set" "node_reverse_ptr_records" {
-  for_each     = (var.create_dns_records && var.reverse_zone_name != null && var.reverse_zone_name != "") ? local.esxi_hosts_dns_map : {}
+  for_each     = (var.setup_cloud_dns && var.reverse_zone_name != null && var.reverse_zone_name != "") ? local.esxi_hosts_dns_map : {}
   project      = var.project_id
   name         = local.node_ptr_record_names[each.key]
   managed_zone = var.reverse_zone_name
@@ -425,12 +425,12 @@ check "validate_dynamic_subnets_and_nics_match" {
 
 check "validate_host_dns_zones" {
   assert {
-    condition = !var.create_dns_records || (
+    condition = !var.setup_cloud_dns || (
       (var.forward_zone_name != null && var.forward_zone_name != "") &&
       (var.reverse_zone_name != null && var.reverse_zone_name != "") &&
       (var.reverse_domain_name != null && var.reverse_domain_name != "" && can(regex("in-addr\\.arpa", var.reverse_domain_name)))
     )
-    error_message = "When create_dns_records is true, forward_zone_name, reverse_zone_name, and reverse_domain_name must all be explicitly provided, and reverse_domain_name must contain 'in-addr.arpa'."
+    error_message = "When setup_cloud_dns is true, forward_zone_name, reverse_zone_name, and reverse_domain_name must all be explicitly provided, and reverse_domain_name must contain 'in-addr.arpa'."
   }
 }
 

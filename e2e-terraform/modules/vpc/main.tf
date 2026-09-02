@@ -45,11 +45,19 @@ locals {
 
   effective_forward_zone_name = var.create_dns_zones ? (
     var.forward_zone_name != null ? var.forward_zone_name : "${var.resource_name_prefix}-forward-zone"
-  ) : (var.create_dns_records ? var.forward_zone_name : null)
+  ) : (var.setup_cloud_dns ? var.forward_zone_name : null)
 
   effective_reverse_zone_name = var.create_dns_zones ? (
     var.reverse_zone_name != null ? var.reverse_zone_name : "${var.resource_name_prefix}-reverse-zone"
-  ) : (var.create_dns_records ? var.reverse_zone_name : null)
+  ) : (var.setup_cloud_dns ? var.reverse_zone_name : null)
+
+  effective_gcp_subnet_name = var.create_gcp_subnet ? (
+    var.gcp_subnet_name != null ? var.gcp_subnet_name : "${var.resource_name_prefix}-gcp-subnet"
+  ) : var.gcp_subnet_name
+
+  gcp_subnet_self_link = var.create_gcp_subnet ? google_compute_subnetwork.gcp_subnet[0].self_link : data.google_compute_subnetwork.existing_gcp_subnet[0].self_link
+
+  effective_gcp_subnet_cidr = var.create_gcp_subnet ? var.gcp_subnet_cidr : data.google_compute_subnetwork.existing_gcp_subnet[0].ip_cidr_range
 
   create_dns_policy         = var.dns_policy_name != null && var.dns_policy_name != ""
   effective_dns_policy_name = var.dns_policy_name
@@ -75,7 +83,37 @@ data "google_compute_network" "existing_vpc" {
 }
 
 # ==============================================================================
-# 2. Security Firewall Rule (Conditional)
+# 2. Standard GCP Subnetwork Creation / Reference (without resolve_subnet_mask)
+# ==============================================================================
+
+resource "google_compute_subnetwork" "gcp_subnet" {
+  count                    = var.create_gcp_subnet ? 1 : 0
+  project                  = var.project_id
+  name                     = local.effective_gcp_subnet_name
+  ip_cidr_range            = var.gcp_subnet_cidr
+  region                   = var.region
+  network                  = local.vpc_network_self_link
+  private_ip_google_access = true
+
+  depends_on = [google_compute_network.vpc]
+}
+
+data "google_compute_subnetwork" "existing_gcp_subnet" {
+  count   = var.create_gcp_subnet ? 0 : 1
+  project = var.project_id
+  name    = local.effective_gcp_subnet_name
+  region  = var.region
+
+  lifecycle {
+    postcondition {
+      condition     = endswith(self.network, local.vpc_name_only)
+      error_message = "The input GCP subnetwork '${local.effective_gcp_subnet_name}' does not belong to the input VPC network '${local.vpc_network_name}'."
+    }
+  }
+}
+
+# ==============================================================================
+# 3. Security Firewall Rule (Conditional)
 # ==============================================================================
 
 resource "google_compute_firewall" "allow_all_ingress" {
@@ -96,7 +134,7 @@ resource "google_compute_firewall" "allow_all_ingress" {
 }
 
 # ==============================================================================
-# 3. Cloud DNS Managed Zones & Inbound Policy (Conditional)
+# 4. Cloud DNS Managed Zones & Inbound Policy (Conditional)
 # ==============================================================================
 
 # Forward Managed Private DNS Zone
@@ -159,7 +197,7 @@ data "google_compute_addresses" "dns_resolvers" {
 }
 
 # ==============================================================================
-# 4. Plan-Phase Module Validation Checks
+# 5. Plan-Phase Module Validation Checks
 # ==============================================================================
 
 check "validate_existing_vpc_name" {
@@ -171,8 +209,8 @@ check "validate_existing_vpc_name" {
 
 check "validate_existing_dns_zones" {
   assert {
-    condition     = !var.create_dns_records || var.create_dns_zones || (var.forward_zone_name != null && var.forward_zone_name != "" && var.reverse_zone_name != null && var.reverse_zone_name != "")
-    error_message = "When create_dns_records is true and create_dns_zones is false, both forward_zone_name and reverse_zone_name must be explicitly provided."
+    condition     = !var.setup_cloud_dns || var.create_dns_zones || (var.forward_zone_name != null && var.forward_zone_name != "" && var.reverse_zone_name != null && var.reverse_zone_name != "")
+    error_message = "When setup_cloud_dns is true and create_dns_zones is false, both forward_zone_name and reverse_zone_name must be explicitly provided."
   }
 }
 
@@ -183,6 +221,20 @@ check "validate_dns_domain_names" {
       (var.reverse_domain_name != null && var.reverse_domain_name != "")
     )
     error_message = "Both domain_name and reverse_domain_name are required when create_dns_zones is true."
+  }
+}
+
+check "validate_existing_gcp_subnet" {
+  assert {
+    condition     = var.create_gcp_subnet || (var.gcp_subnet_name != null && var.gcp_subnet_name != "")
+    error_message = "When create_gcp_subnet is false, gcp_subnet_name must be explicitly provided."
+  }
+}
+
+check "validate_gcp_subnet_cidr" {
+  assert {
+    condition     = !var.create_gcp_subnet || (var.gcp_subnet_cidr != null && var.gcp_subnet_cidr != "" && can(cidrhost(var.gcp_subnet_cidr, 0)))
+    error_message = "When create_gcp_subnet is true, gcp_subnet_cidr must be explicitly provided as a valid IPv4 CIDR string (e.g. 10.0.100.0/29)."
   }
 }
 

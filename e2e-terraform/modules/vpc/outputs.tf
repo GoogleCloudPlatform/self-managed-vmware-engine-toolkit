@@ -22,6 +22,21 @@ output "vpc_network_self_link" {
   description = "The URI/self-link of the VPC network"
 }
 
+output "gcp_subnet_name" {
+  value       = local.effective_gcp_subnet_name
+  description = "Name of the GCP standard subnetwork for DNS resolution and offline depot"
+}
+
+output "gcp_subnet_self_link" {
+  value       = local.gcp_subnet_self_link
+  description = "Self-link URI of the GCP standard subnetwork for DNS resolution and offline depot"
+}
+
+output "gcp_subnet_cidr" {
+  value       = local.effective_gcp_subnet_cidr
+  description = "IPv4 CIDR block of the GCP standard subnetwork"
+}
+
 output "firewall_rule_allow_all_self_link" {
   value       = length(google_compute_firewall.allow_all_ingress) > 0 ? google_compute_firewall.allow_all_ingress[0].self_link : null
   description = "The self link of the allow-all ingress firewall rule (null if not created)"

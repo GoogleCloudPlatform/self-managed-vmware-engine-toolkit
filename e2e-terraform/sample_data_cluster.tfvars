@@ -10,7 +10,7 @@
 # 1. Day-0 / Day-1 Initial Cluster Provisioning:
 #    - Set `deployment_mode = "cluster_creation"`.
 #    - Fill in Project & Geographic Scope, Subnets, Bare-Metal Hosts, and Dynamic NICs
-#      configurations in this file (reference the existing Management Cluster VPC & DNS zones).
+#      configurations in this file (reference the existing Management Cluster VPC, GCP subnet & DNS zones).
 #    - Run `terraform init` and `terraform apply`.
 #    - Terraform automatically provisions L2 subnets, zonal NEGs, bare-metal ESXi host
 #      instances, attaches node interfaces to NEGs, and registers host DNS records in the shared zone.
@@ -93,13 +93,28 @@ create_firewalls = false
 
 
 # ------------------------------------------------------------------------------
-# 2.1 Cloud DNS Managed Zones, Records & Inbound Policy Creation
+# 2.1 Cloud DNS Managed Zones, Records, GCP Subnet & Inbound Policy Creation
 # ------------------------------------------------------------------------------
 
-# Description: Master switch determining whether to create Cloud DNS forward (A) and reverse (PTR) records for Data Cluster ESXi compute hosts. If create_dns_records is set to false, the entire DNS-related section in the input (create_dns_zones, forward_zone_name, reverse_zone_name, reverse_domain_name, dns_ttl) can be skipped, except dns_policy_name.
+# Description: Master switch determining whether to set up Cloud DNS forward (A) and reverse (PTR) records for Data Cluster ESXi compute hosts. If setup_cloud_dns is set to false, the entire DNS-related section in the input (create_gcp_subnet, gcp_subnet_name, gcp_subnet_cidr, create_dns_zones, forward_zone_name, reverse_zone_name, reverse_domain_name, dns_ttl) can be skipped, and dns_server in python_scripts_input_config will be output as "<user_should_input>".
 # Valid Values: true, false
 # Default Value: true (Optional)
-create_dns_records = true
+setup_cloud_dns = true
+
+# Description: Whether to create a dedicated standard GCP subnetwork (without resolve_subnet_mask) for Cloud DNS inbound resolver IP reservation and Offline Depot PSC endpoint (true) or reference an existing subnetwork (false). For Data Clusters sharing the VPC, set to false and reference the existing management GCP subnet if needed.
+# Valid Values: true, false
+# Default Value: true (Optional)
+create_gcp_subnet = false
+
+# Description: Resource name of the GCP subnetwork for DNS resolution and offline depot. When create_gcp_subnet = false, this must be the name of an existing subnetwork in GCP.
+# Valid Values: Valid GCP subnetwork name string, or null.
+# Default Value: null (Optional)
+gcp_subnet_name = "vcf-mgmt-sample-gcp-subnet"
+
+# Description: IPv4 CIDR range for the dedicated GCP subnetwork used for Cloud DNS inbound resolution and Offline Depot PSC endpoint. Required when create_gcp_subnet = true.
+# Valid Values: Valid IPv4 CIDR block string (e.g., "10.0.100.0/29").
+# Default Value: null (Conditional - Required when create_gcp_subnet = true)
+gcp_subnet_cidr = null
 
 # Description: Whether to create new Cloud DNS private managed zones. Set to FALSE for Data Clusters to reuse existing shared DNS zones from the Management Cluster.
 # Valid Values: true, false
@@ -108,12 +123,12 @@ create_dns_zones = false
 
 # Description: Resource name of the existing forward managed DNS zone in GCP where Data Cluster ESXi host A records will be registered.
 # Valid Values: Valid Cloud DNS managed zone name string, or null.
-# Default Value: null (Conditional - Required to be an existing zone when create_dns_records = true and create_dns_zones = false)
+# Default Value: null (Conditional - Required to be an existing zone when setup_cloud_dns = true and create_dns_zones = false)
 forward_zone_name = "vcf-mgmt-sample-forward-zone"
 
 # Description: Resource name of the existing reverse managed DNS zone in GCP where Data Cluster ESXi host PTR records will be registered.
 # Valid Values: Valid Cloud DNS managed zone name string, or null.
-# Default Value: null (Conditional - Required to be an existing zone when create_dns_records = true and create_dns_zones = false)
+# Default Value: null (Conditional - Required to be an existing zone when setup_cloud_dns = true and create_dns_zones = false)
 reverse_zone_name = "vcf-mgmt-sample-reverse-zone"
 
 # Description: Reverse lookup domain name (in-addr.arpa.) matching the reverse managed DNS zone.

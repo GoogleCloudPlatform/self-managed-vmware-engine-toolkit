@@ -350,7 +350,7 @@ variable "additional_dynamic_subnets" {
 # Cloud DNS Record Configuration for ESXi Hosts
 # ------------------------------------------------------------------------------
 
-variable "create_dns_records" {
+variable "setup_cloud_dns" {
   type        = bool
   default     = true
   description = "Whether to create Cloud DNS forward (A) and reverse (PTR) records for ESXi hosts."
@@ -359,19 +359,19 @@ variable "create_dns_records" {
 variable "forward_zone_name" {
   type        = string
   default     = null
-  description = "Forward Cloud DNS managed zone name. When provided and create_dns_records is true, forward A records are created for all ESXi hosts."
+  description = "Forward Cloud DNS managed zone name. When provided and setup_cloud_dns is true, forward A records are created for all ESXi hosts."
 }
 
 variable "reverse_zone_name" {
   type        = string
   default     = null
-  description = "Reverse Cloud DNS managed zone name. When provided and create_dns_records is true, reverse PTR records are created for all ESXi hosts."
+  description = "Reverse Cloud DNS managed zone name. When provided and setup_cloud_dns is true, reverse PTR records are created for all ESXi hosts."
 }
 
 variable "reverse_domain_name" {
   type        = string
   default     = null
-  description = "Reverse lookup domain name (in-addr.arpa.) for reverse PTR record calculation (required when create_dns_records is true)."
+  description = "Reverse lookup domain name (in-addr.arpa.) for reverse PTR record calculation (required when setup_cloud_dns is true)."
   validation {
     condition     = var.reverse_domain_name == null || can(regex("in-addr\\.arpa", var.reverse_domain_name))
     error_message = "reverse_domain_name must contain 'in-addr.arpa' (e.g. '10.in-addr.arpa.' or '0.200.10.in-addr.arpa.')."

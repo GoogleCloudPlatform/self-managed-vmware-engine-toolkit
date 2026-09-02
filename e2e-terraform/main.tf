@@ -49,8 +49,11 @@ module "vpc" {
   routing_mode         = var.routing_mode
   create_firewalls     = var.create_firewalls
 
-  # Cloud DNS Zones & Inbound Policy
-  create_dns_records  = var.create_dns_records
+  # Cloud DNS Zones, GCP Subnet & Inbound Policy
+  setup_cloud_dns     = var.setup_cloud_dns
+  create_gcp_subnet   = var.create_gcp_subnet
+  gcp_subnet_name     = var.gcp_subnet_name
+  gcp_subnet_cidr     = var.gcp_subnet_cidr
   create_dns_zones    = var.create_dns_zones
   dns_policy_name     = var.dns_policy_name
   domain_name         = var.domain_name
@@ -157,7 +160,7 @@ module "hosts" {
   additional_dynamic_subnets = var.additional_dynamic_subnets
 
   # Host Cloud DNS Records
-  create_dns_records  = var.create_dns_records
+  setup_cloud_dns     = var.setup_cloud_dns
   forward_zone_name   = module.vpc.forward_zone_name
   reverse_zone_name   = module.vpc.reverse_zone_name
   reverse_domain_name = var.reverse_domain_name
@@ -194,7 +197,7 @@ module "appliances" {
   forward_zone_name    = module.vpc.forward_zone_name
   reverse_zone_name    = module.vpc.reverse_zone_name
   dns_ttl              = var.dns_ttl
-  create_dns_records   = var.create_dns_records
+  setup_cloud_dns      = var.setup_cloud_dns
 
   depends_on = [module.hosts]
 }

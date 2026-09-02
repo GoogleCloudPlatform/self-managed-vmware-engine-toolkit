@@ -94,27 +94,42 @@ create_firewalls = true
 
 
 # ------------------------------------------------------------------------------
-# 2.1 Cloud DNS Managed Zones, Records & Inbound Policy Creation
+# 2.1 Cloud DNS Managed Zones, Records, GCP Subnet & Inbound Policy Creation
 # ------------------------------------------------------------------------------
 
-# Description: Master switch determining whether to create Cloud DNS forward (A) and reverse (PTR) records for bare-metal ESXi hosts and VCF/NSX appliances. If create_dns_records is set to false, the entire DNS-related section in the input (create_dns_zones, forward_zone_name, reverse_zone_name, reverse_domain_name, dns_ttl) can be skipped, except dns_policy_name.
+# Description: Master switch determining whether to set up Cloud DNS forward (A) and reverse (PTR) records, managed zones, and inbound DNS resolution policy for bare-metal ESXi hosts and VCF/NSX appliances. If setup_cloud_dns is set to false, the entire DNS-related section in the input (create_gcp_subnet, gcp_subnet_name, gcp_subnet_cidr, create_dns_zones, forward_zone_name, reverse_zone_name, reverse_domain_name, dns_ttl) can be skipped, and dns_server in python_scripts_input_config will be output as "<user_should_input>".
 # Valid Values: true, false
 # Default Value: true (Optional)
-create_dns_records = true
+setup_cloud_dns = true
+
+# Description: Whether to create a dedicated standard GCP subnetwork (without resolve_subnet_mask) for Cloud DNS inbound resolver IP reservation and Offline Depot PSC endpoint (true) or reference an existing subnetwork (false).
+# Valid Values: true, false
+# Default Value: true (Optional)
+create_gcp_subnet = true
+
+# Description: Resource name of the GCP subnetwork for DNS resolution and offline depot. When create_gcp_subnet = true, defaults to "<resource_name_prefix>-gcp-subnet" if null. If create_gcp_subnet = false, this must be the name of an existing subnetwork in GCP.
+# Valid Values: Valid GCP subnetwork name string, or null.
+# Default Value: null (Optional)
+gcp_subnet_name = "vcf-staging-mgmt-sample-gcp-subnet"
+
+# Description: IPv4 CIDR range for the dedicated GCP subnetwork used for Cloud DNS inbound resolution and Offline Depot PSC endpoint. Required when create_gcp_subnet = true.
+# Valid Values: Valid IPv4 CIDR block string (e.g., "10.0.100.0/29").
+# Default Value: null (Conditional - Required when create_gcp_subnet = true)
+gcp_subnet_cidr = "10.0.100.0/29"
 
 # Description: Whether to create new forward and reverse Cloud DNS private managed zones in GCP (true) or reference existing managed zones (false).
 # Valid Values: true, false
 # Default Value: true (Optional)
 create_dns_zones = true
 
-# Description: Resource name of the forward managed DNS zone. When create_dns_zones = true, defaults to "<resource_name_prefix>-forward-zone" if null. If create_dns_zones = false and create_dns_records = true, this must be the name of an existing forward zone in GCP.
+# Description: Resource name of the forward managed DNS zone. When create_dns_zones = true, defaults to "<resource_name_prefix>-forward-zone" if null. If create_dns_zones = false and setup_cloud_dns = true, this must be the name of an existing forward zone in GCP.
 # Valid Values: Valid Cloud DNS managed zone name string, or null.
-# Default Value: null (Conditional - Required to be an existing zone when create_dns_records = true and create_dns_zones = false)
+# Default Value: null (Conditional - Required to be an existing zone when setup_cloud_dns = true and create_dns_zones = false)
 forward_zone_name = null
 
-# Description: Resource name of the reverse managed DNS zone. When create_dns_zones = true, defaults to "<resource_name_prefix>-reverse-zone" if null. If create_dns_zones = false and create_dns_records = true, this must be the name of an existing reverse zone in GCP.
+# Description: Resource name of the reverse managed DNS zone. When create_dns_zones = true, defaults to "<resource_name_prefix>-reverse-zone" if null. If create_dns_zones = false and setup_cloud_dns = true, this must be the name of an existing reverse zone in GCP.
 # Valid Values: Valid Cloud DNS managed zone name string, or null.
-# Default Value: null (Conditional - Required to be an existing zone when create_dns_records = true and create_dns_zones = false)
+# Default Value: null (Conditional - Required to be an existing zone when setup_cloud_dns = true and create_dns_zones = false)
 reverse_zone_name = null
 
 # Description: Reverse lookup domain name (in-addr.arpa.) for the reverse managed DNS zone and PTR records. Required when create_dns_zones = true.
