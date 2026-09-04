@@ -256,6 +256,6 @@ class OVFPropertyKeys:
 class PasswordResetDefaults:
   """Defaults for Phase 3 ESXi inventory root password reset."""
 
-  DEFAULT_INITIAL_SECRET = "Google1!Google1!"
+  DEFAULT_INITIAL_SECRET = "google1!"
   DEFAULT_BATCH_SIZE = 10
   DEFAULT_ROOT_USER = "root"
