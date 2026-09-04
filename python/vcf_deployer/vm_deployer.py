@@ -12,6 +12,7 @@ import tarfile
 import time
 from typing import Any, Optional, Tuple
 import urllib.request
+import paramiko
 
 from clients import esxi_client as esxi_client_mod
 import constants
@@ -585,3 +586,75 @@ class VMDeployer:
         f"Timed out after {timeout_seconds}s waiting for guest to acquire IP"
         f" '{target_ip}'."
     )
+
+  def bypass_vcf_hcl_disk_validation(
+    vcf_ip: str,
+    root_password: str,
+    timeout_seconds: int = 180,
+    poll_interval_seconds: int = 5,
+  ) -> None:
+    """Injects bypass properties into VCF Cloud Builder and restarts vcf-bringup.
+    Bypasses the 'All disks claimed by vSAN' / HCL eligibility error on Node 0.
+    Args:
+        vcf_ip: SDDC Manager / Cloud Builder appliance IP.
+        root_password: Root password for the VCF appliance.
+        timeout_seconds: Max seconds to wait for SSH connectivity.
+        poll_interval_seconds: Polling interval between SSH attempts.
+    """
+    logger.info("Connecting to VCF appliance at %s to inject HCL bypass...", vcf_ip)
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    # 1. Wait for SSH daemon to become ready on Cloud Builder
+    start_time = time.time()
+    connected = False
+    while time.time() - start_time < timeout_seconds:
+      try:
+        client.connect(
+            hostname=vcf_ip,
+            username="root",
+            password=root_password,
+            timeout=10,
+            allow_agent=False,
+            look_for_keys=False,
+        )
+        connected = True
+        logger.info("SSH connection established to %s.", vcf_ip)
+        break
+      except Exception as exc:  # pylint: disable=broad-exception-caught
+        logger.debug("Waiting for VCF SSH daemon (%s)...", exc)
+        time.sleep(poll_interval_seconds)
+    if not connected:
+      raise TimeoutError(
+          f"Timed out after {timeout_seconds}s waiting for SSH on VCF appliance {vcf_ip}."
+      )
+    try:
+      # 2. Append bypass properties to Cloud Builder configuration
+      properties_to_add = [
+          "vsan.esa.sddc.managed.disk.claim=true",
+          "sos.hcl.validation=false",
+      ]
+      target_files = [
+          "/opt/vmware/bringup/web/conf/application-prod.properties",
+          "/etc/vmware/vcf/bringup/conf/application.properties",
+      ]
+      for conf_path in target_files:
+        for prop in properties_to_add:
+          # Idempotently append property only if not already present
+          cmd = (
+              f"test -f {conf_path} && "
+              f"! grep -q '^{prop.split('=')[0]}' {conf_path} && "
+              f"echo '{prop}' >> {conf_path} || true"
+          )
+          _, stdout, stderr = client.exec_command(cmd)
+          stdout.channel.recv_exit_status()
+      logger.info("Bypass properties injected. Restarting vcf-bringup service...")
+      # 3. Restart the bringup service to pick up the updated properties
+      restart_cmd = "systemctl restart vcf-bringup"
+      _, stdout, stderr = client.exec_command(restart_cmd)
+      exit_status = stdout.channel.recv_exit_status()
+      if exit_status != 0:
+        err = stderr.read().decode("utf-8")
+        raise RuntimeError(f"Failed to restart vcf-bringup: {err}")
+      logger.info("vcf-bringup restarted successfully with HCL bypass enabled.")
+    finally:
+      client.close()
