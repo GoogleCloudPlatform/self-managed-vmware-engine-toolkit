@@ -220,7 +220,7 @@ class TestStringUtils(unittest.TestCase):
       )
       self.assertEqual(
           string_utils.get_service_attachment_uri("us-central1"),
-          "projects/smve-offline-depot/regions/us-central1/serviceAttachments/offline-depot-service-attachment-us-central1",
+          "projects/smve-prod-offline-depot/regions/us-central1/serviceAttachments/offline-depot-service-attachment-us-central1",
       )
       self.assertEqual(
           string_utils.get_dns_zone_name("us-central1"),
