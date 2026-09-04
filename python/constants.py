@@ -41,6 +41,7 @@ class VCFConfigKeys:
   """Keys for optional Phase 2 VCF deployment configuration block."""
 
   TARGET_GCE_NODE = "target_gce_node"
+  VCF_APPLIANCE_LOCAL_USER = "vcf_appliance_local_user"
   VCF_APPLIANCE_ROOT_PASSWORD_SECRET = "vcf_appliance_root_password_secret"
   VCF_APPLIANCE_LOCAL_USER_PASSWORD_SECRET = (
       "vcf_appliance_local_user_password_secret"

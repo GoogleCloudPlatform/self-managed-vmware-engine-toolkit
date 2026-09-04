@@ -60,6 +60,7 @@ class VCFDeploymentConfig:
 
   target_gce_node: str
   vcf_appliance_root_password_secret: str
+  vcf_appliance_local_user: str
   vcf_appliance_local_user_password_secret: str
   vcf_installer_fqdn: str
   vcf_installer_ip_source: Any
@@ -166,6 +167,7 @@ class ValidationContext:
   ssl_thumbprint: Optional[str] = None
   vcf_appliance_root_password: Optional[str] = None
   vcf_appliance_local_password: Optional[str] = None
+  vcf_appliance_local_user: Optional[str] = "admin"
   dns_server: Optional[str] = None
 
 
