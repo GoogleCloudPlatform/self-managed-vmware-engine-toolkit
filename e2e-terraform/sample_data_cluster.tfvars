@@ -110,7 +110,7 @@ create_firewalls = false
 # 2.1 Cloud DNS Managed Zones, Records, GCP Subnet & Inbound Policy Creation
 # ------------------------------------------------------------------------------
 
-# Description: Master switch determining whether to set up Cloud DNS forward (A) and reverse (PTR) records for Data Cluster ESXi compute hosts. If setup_cloud_dns is set to false, the entire DNS-related section in the input (create_gcp_subnet, gcp_subnet_name, gcp_subnet_cidr, create_dns_zones, forward_zone_name, reverse_zone_name, reverse_domain_name, dns_ttl) can be skipped, and dns_server in python_scripts_input_config will be output as "<user_should_input>".
+# Description: Master switch determining whether to set up Cloud DNS forward (A) and reverse (PTR) records for Data Cluster ESXi compute hosts. If setup_cloud_dns is set to true, a forward DNS A record for the NTP FQDN (pointing to "169.254.169.254") is also created. If setup_cloud_dns is set to false, the entire DNS-related section in the input (create_gcp_subnet, gcp_subnet_name, gcp_subnet_cidr, create_dns_zones, forward_zone_name, reverse_zone_name, reverse_domain_name, dns_ttl) can be skipped, and dns_server in python_scripts_input_config will be output as "<user_should_input>".
 # Valid Values: true, false
 # Default Value: true (Optional)
 setup_cloud_dns = true
