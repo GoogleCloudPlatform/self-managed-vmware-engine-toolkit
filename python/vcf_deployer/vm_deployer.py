@@ -407,6 +407,13 @@ class VMDeployer:
         else constants.NetworkingDefaults.DEFAULT_METADATA_SERVER
     )
 
+    clean_domain = domain.rstrip(".") if domain else domain
+    effective_ntp_server = (
+        f"ntp.{clean_domain}"
+        if clean_domain
+        else constants.NetworkingDefaults.DEFAULT_METADATA_SERVER
+    )
+
     xml_payload = self._marshal_ovf_properties(
         sddc_manager_ip=sddc_manager_ip,
         gateway=gateway,
@@ -416,6 +423,7 @@ class VMDeployer:
         fqdn=fqdn,
         domain=domain,
         searchpath=searchpath,
+        ntp_server=effective_ntp_server,
         dns_server=effective_dns_server,
     )
 
@@ -432,15 +440,25 @@ class VMDeployer:
       fqdn: str,
       domain: str,
       searchpath: str,
-      ntp_server: str = constants.NetworkingDefaults.DEFAULT_METADATA_SERVER,
+      ntp_server: Optional[str] = None,
       dns_server: str = constants.NetworkingDefaults.DEFAULT_METADATA_SERVER,
   ) -> str:
     """Constructs OVF environment XML string with network and auth properties."""
+    clean_domain = domain.rstrip(".") if domain else domain
+    effective_ntp_server = (
+        ntp_server
+        if ntp_server
+        else (
+            f"ntp.{clean_domain}"
+            if clean_domain
+            else constants.NetworkingDefaults.DEFAULT_METADATA_SERVER
+        )
+    )
     env_props = [
         (constants.OVFPropertyKeys.ROOT_PASSWORD, root_pwd),
         (constants.OVFPropertyKeys.LOCAL_USER_PASSWORD, local_pwd),
         (constants.OVFPropertyKeys.VAMI_HOSTNAME, fqdn),
-        (constants.OVFPropertyKeys.GUESTINFO_NTP, ntp_server),
+        (constants.OVFPropertyKeys.GUESTINFO_NTP, effective_ntp_server),
         (constants.OVFPropertyKeys.VAMI_IP0_SDDC_MANAGER, sddc_manager_ip),
         (constants.OVFPropertyKeys.VAMI_NETMASK0_SDDC_MANAGER, netmask),
         (constants.OVFPropertyKeys.VAMI_GATEWAY_SDDC_MANAGER, gateway),
