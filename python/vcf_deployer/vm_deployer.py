@@ -7,6 +7,7 @@ extraConfig environment injection via ReconfigVM_Task), and Phase 2e
 """
 
 import logging
+import shlex
 import ssl
 import tarfile
 import time
@@ -588,73 +589,133 @@ class VMDeployer:
     )
 
   def bypass_vcf_hcl_disk_validation(
-    vcf_ip: str,
-    root_password: str,
-    timeout_seconds: int = 180,
-    poll_interval_seconds: int = 5,
+      self,
+      vcf_ip: str,
+      root_pwd: str,
+      local_pwd: Optional[str] = None,
+      appliance_user: str = "vcf",
+      timeout_seconds: int = 180,
+      poll_interval_seconds: int = 5,
   ) -> None:
-    """Injects bypass properties into VCF Cloud Builder and restarts vcf-bringup.
-    Bypasses the 'All disks claimed by vSAN' / HCL eligibility error on Node 0.
-    Args:
-        vcf_ip: SDDC Manager / Cloud Builder appliance IP.
-        root_password: Root password for the VCF appliance.
-        timeout_seconds: Max seconds to wait for SSH connectivity.
-        poll_interval_seconds: Polling interval between SSH attempts.
-    """
-    logger.info("Connecting to VCF appliance at %s to inject HCL bypass...", vcf_ip)
+    """Logs in as appliance user, switches to root via 'su -', and applies HCL bypass."""
+    login_user = appliance_user if local_pwd else "root"
+    login_pwd = local_pwd if local_pwd else root_pwd
+    logger.info(
+        "Phase 2f: Connecting to VCF appliance at %s as '%s'...",
+        vcf_ip,
+        login_user,
+    )
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    # 1. Wait for SSH daemon to become ready on Cloud Builder
+    # 1. Wait for SSH daemon
     start_time = time.time()
     connected = False
     while time.time() - start_time < timeout_seconds:
       try:
         client.connect(
             hostname=vcf_ip,
-            username="root",
-            password=root_password,
+            username=login_user,
+            password=login_pwd,
             timeout=10,
             allow_agent=False,
             look_for_keys=False,
         )
         connected = True
-        logger.info("SSH connection established to %s.", vcf_ip)
+        logger.info(
+            "SSH connection established to VCF appliance %s as '%s'.",
+            vcf_ip,
+            login_user,
+        )
         break
       except Exception as exc:  # pylint: disable=broad-exception-caught
         logger.debug("Waiting for VCF SSH daemon (%s)...", exc)
         time.sleep(poll_interval_seconds)
     if not connected:
-      raise TimeoutError(
-          f"Timed out after {timeout_seconds}s waiting for SSH on VCF appliance {vcf_ip}."
+      raise models.DeployerError(
+          f"Timed out after {timeout_seconds}s waiting for SSH on VCF"
+          f" appliance {vcf_ip}."
       )
+    shell = None
     try:
-      # 2. Append bypass properties to Cloud Builder configuration
-      properties_to_add = [
-          "vsan.esa.sddc.managed.disk.claim=true",
-          "sos.hcl.validation=false",
-      ]
-      target_files = [
-          "/opt/vmware/bringup/web/conf/application-prod.properties",
-          "/etc/vmware/vcf/bringup/conf/application.properties",
-      ]
-      for conf_path in target_files:
-        for prop in properties_to_add:
-          # Idempotently append property only if not already present
-          cmd = (
-              f"test -f {conf_path} && "
-              f"! grep -q '^{prop.split('=')[0]}' {conf_path} && "
-              f"echo '{prop}' >> {conf_path} || true"
+      # 2. Open interactive shell session
+      shell = client.invoke_shell()
+      shell.settimeout(15.0)
+      def _read_until(
+          expected_patterns: list[str], timeout: int = 15
+      ) -> tuple[bool, str]:
+        accumulated = ""
+        read_start = time.time()
+        while time.time() - read_start < timeout:
+          if shell.recv_ready():
+            chunk = shell.recv(4096).decode("utf-8", errors="replace")
+            accumulated += chunk
+            for pattern in expected_patterns:
+              if pattern.lower() in accumulated.lower():
+                return True, accumulated
+          time.sleep(0.1)
+        return False, accumulated
+      # Drain initial welcome banner/prompt
+      time.sleep(1.0)
+      if shell.recv_ready():
+        shell.recv(4096)
+      # 3. Switch to root via 'su -'
+      if login_user != "root":
+        logger.info("Elevating to root via 'su -' on %s...", vcf_ip)
+        shell.send("su -\n")
+        matched, out = _read_until(["Password:"], timeout=10)
+        if not matched:
+          raise models.DeployerError(
+              f"Timed out waiting for root Password prompt on {vcf_ip}:"
+              f" {out.strip()}"
           )
-          _, stdout, stderr = client.exec_command(cmd)
-          stdout.channel.recv_exit_status()
-      logger.info("Bypass properties injected. Restarting vcf-bringup service...")
-      # 3. Restart the bringup service to pick up the updated properties
-      restart_cmd = "systemctl restart vcf-bringup"
-      _, stdout, stderr = client.exec_command(restart_cmd)
-      exit_status = stdout.channel.recv_exit_status()
-      if exit_status != 0:
-        err = stderr.read().decode("utf-8")
-        raise RuntimeError(f"Failed to restart vcf-bringup: {err}")
-      logger.info("vcf-bringup restarted successfully with HCL bypass enabled.")
+        # Send root password
+        shell.send(root_pwd + "\n")
+        time.sleep(1.0)
+        # Verify we actually became root
+        shell.send("whoami\n")
+        matched, whoami_out = _read_until(["root", "failure"], timeout=10)
+        if "failure" in whoami_out.lower() or "root" not in whoami_out:
+          raise models.DeployerError(
+              f"Failed to switch to root user via 'su -' on {vcf_ip}:"
+              f" {whoami_out.strip()}"
+          )
+        logger.info("Successfully elevated to root user on %s.", vcf_ip)
+      # 4. Execute configuration injection and service restart strictly as root
+      commands = [
+          (
+              "files=('/opt/vmware/bringup/web/conf/application-prod.properties'"
+              " '/etc/vmware/vcf/bringup/conf/application.properties'"
+              " '/etc/vmware/vcf/domainmanager/application.properties')"
+          ),
+          (
+              "for conf in \"${files[@]}\"; do if [ -f \"$conf\" ]; then grep"
+              " -q '^vsan.esa.sddc.managed.disk.claim' \"$conf\" || echo"
+              " 'vsan.esa.sddc.managed.disk.claim=true' >> \"$conf\"; grep -q"
+              " '^sos.hcl.validation' \"$conf\" || echo"
+              " 'sos.hcl.validation=false' >> \"$conf\"; fi; done"
+          ),
+          (
+              "if systemctl list-unit-files | grep -q 'vcf-bringup'; then"
+              " systemctl restart vcf-bringup; elif systemctl list-unit-files |"
+              " grep -q 'domainmanager'; then systemctl restart domainmanager;"
+              " fi"
+          ),
+          "echo BYPASS_DONE:$?",
+      ]
+      for cmd in commands:
+        shell.send(cmd + "\n")
+        time.sleep(0.5)
+      # Wait for the completion flag
+      matched, final_output = _read_until(["BYPASS_DONE:0"], timeout=60)
+      if not matched:
+        raise models.DeployerError(
+            f"HCL bypass script execution failed on {vcf_ip}:\n{final_output.strip()}"
+        )
+      logger.info(
+          "HCL bypass properties successfully written and bringup service"
+          " restarted."
+      )
     finally:
+      if shell:
+        shell.close()
       client.close()

@@ -203,6 +203,9 @@ def load_config(config_file_path: str) -> models.DeployerConfig:
         vcf_appliance_root_password_secret=vcf_data[
             constants.VCFConfigKeys.VCF_APPLIANCE_ROOT_PASSWORD_SECRET
         ],
+        vcf_appliance_local_user = (
+            vcf_data.get(constants.VCFConfigKeys.VCF_APPLIANCE_LOCAL_USER) or "vcf"
+        ),
         vcf_appliance_local_user_password_secret=vcf_data[
             constants.VCFConfigKeys.VCF_APPLIANCE_LOCAL_USER_PASSWORD_SECRET
         ],
@@ -351,6 +354,8 @@ def run_pipeline(config_file_path: str) -> int:
               vm_mgr.bypass_vcf_hcl_disk_validation,
               vcf_ip=ctx.vcf_installer_ip,
               root_pwd=ctx.vcf_appliance_root_password,
+              local_pwd=ctx.vcf_appliance_local_password,
+              appliance_user=ctx.vcf_appliance_local_user,
               timeout_seconds=180,
               poll_interval_seconds=5,
           )

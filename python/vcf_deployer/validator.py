@@ -75,6 +75,7 @@ class PreDeploymentValidator:
           esxi_nodes=esxi_details_map,
           new_esxi_root_password=root_pass,
       )
+    vcf_appliance_local_user = svcf_cfg.vcf_appliance_local_user
 
     # 4. Target ESXi host lookup from cache
     target_full_path = self.config.get_full_node_path(
@@ -170,6 +171,7 @@ class PreDeploymentValidator:
         ssl_thumbprint=thumbprint,
         vcf_appliance_root_password=vcf_root,
         vcf_appliance_local_password=vcf_local,
+        vcf_appliance_local_user=vcf_appliance_local_user,
         dns_server=vcf_cfg.dns_server,
     )
 
