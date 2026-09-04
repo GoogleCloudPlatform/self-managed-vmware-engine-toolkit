@@ -77,8 +77,7 @@ class VSANManager:
           "Step C: Found %d eligible disk(s). Claiming via esxcli...",
           len(eligible_disks),
       )
-
-      self._claim_disks_in_bulk(eligible_disks[:2])
+      self._claim_disks_in_bulk(eligible_disks)
 
     # Step D: Hardcoded Policy Binding (matching preparednode.go specification)
     logger.info(
