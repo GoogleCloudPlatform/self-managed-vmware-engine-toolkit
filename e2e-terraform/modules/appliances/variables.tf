@@ -177,3 +177,13 @@ variable "dns_ttl" {
   default     = 300
   description = "Time-to-live (TTL) in seconds for appliance DNS record sets."
 }
+
+variable "ntp_ip" {
+  type        = string
+  default     = null
+  description = "IP address for the NTP server forward DNS A record. If provided and setup_cloud_dns is true, an A record (ntp.<domain_name>) pointing to this IP is created."
+  validation {
+    condition     = var.ntp_ip == null || can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", var.ntp_ip))
+    error_message = "ntp_ip must be a valid IPv4 address string (e.g. '169.254.169.254') or null."
+  }
+}

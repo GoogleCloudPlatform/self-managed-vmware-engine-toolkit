@@ -39,6 +39,7 @@ routing_mode = "GLOBAL"
 # NOTE: Firewall rules are VPC-wide and affect all clusters residing in this VPC network.
 create_firewalls = true
 
+<<<<<<< HEAD
 # Cloud DNS Configuration:
 # - create_dns_records: Master switch to register DNS A (forward) and PTR (reverse) records.
 # - create_dns_zones: Set to true to create private forward and reverse Cloud DNS zones.
@@ -47,12 +48,75 @@ create_firewalls = true
 # - dns_policy_name: Name of Cloud DNS inbound forwarding policy. Set to null if policy is not required or already exists.
 create_dns_records  = true
 create_dns_zones    = true
+=======
+
+# ------------------------------------------------------------------------------
+# 2.1 Cloud DNS Managed Zones, Records, GCP Subnet & Inbound Policy Creation
+# ------------------------------------------------------------------------------
+
+# Description: Master switch determining whether to set up Cloud DNS forward (A) and reverse (PTR) records, managed zones, and inbound DNS resolution policy for bare-metal ESXi hosts and VCF/NSX appliances. If setup_cloud_dns is set to false, the entire DNS-related section in the input (create_gcp_subnet, gcp_subnet_name, gcp_subnet_cidr, create_dns_zones, forward_zone_name, reverse_zone_name, reverse_domain_name, dns_ttl, ntp_ip) can be skipped, and dns_server in python_scripts_input_config will be output as "<user_should_input>".
+# Valid Values: true, false
+# Default Value: true (Optional)
+setup_cloud_dns = true
+
+# Description: Whether to create a dedicated standard GCP subnetwork (without resolve_subnet_mask) for Cloud DNS inbound resolver IP reservation and Offline Depot PSC endpoint (true) or reference an existing subnetwork (false).
+# Valid Values: true, false
+# Default Value: true (Optional)
+create_gcp_subnet = true
+
+# Description: Resource name of the GCP subnetwork for DNS resolution and offline depot. When create_gcp_subnet = true, defaults to "<resource_name_prefix>-gcp-subnet" if null. If create_gcp_subnet = false, this must be the name of an existing subnetwork in GCP.
+# Valid Values: Valid GCP subnetwork name string, or null.
+# Default Value: null (Optional)
+gcp_subnet_name = "vcf-staging-mgmt-sample-gcp-subnet"
+
+# Description: IPv4 CIDR range for the dedicated GCP subnetwork used for Cloud DNS inbound resolution and Offline Depot PSC endpoint. Required when create_gcp_subnet = true.
+# Valid Values: Valid IPv4 CIDR block string (e.g., "10.0.100.0/29").
+# Default Value: null (Conditional - Required when create_gcp_subnet = true)
+gcp_subnet_cidr = "10.0.100.0/29"
+
+# Description: Whether to create new forward and reverse Cloud DNS private managed zones in GCP (true) or reference existing managed zones (false).
+# Valid Values: true, false
+# Default Value: true (Optional)
+create_dns_zones = true
+
+# Description: Resource name of the forward managed DNS zone. When create_dns_zones = true, defaults to "<resource_name_prefix>-forward-zone" if null. If create_dns_zones = false and setup_cloud_dns = true, this must be the name of an existing forward zone in GCP.
+# Valid Values: Valid Cloud DNS managed zone name string, or null.
+# Default Value: null (Conditional - Required to be an existing zone when setup_cloud_dns = true and create_dns_zones = false)
+forward_zone_name = null
+
+# Description: Resource name of the reverse managed DNS zone. When create_dns_zones = true, defaults to "<resource_name_prefix>-reverse-zone" if null. If create_dns_zones = false and setup_cloud_dns = true, this must be the name of an existing reverse zone in GCP.
+# Valid Values: Valid Cloud DNS managed zone name string, or null.
+# Default Value: null (Conditional - Required to be an existing zone when setup_cloud_dns = true and create_dns_zones = false)
+reverse_zone_name = null
+
+# Description: Reverse lookup domain name (in-addr.arpa.) for the reverse managed DNS zone and PTR records. Required when create_dns_zones = true.
+# Valid Values: Valid in-addr.arpa domain string (e.g., "250.10.in-addr.arpa.", "10.in-addr.arpa.", "0.250.10.in-addr.arpa.").
+# Default Value: null (Conditional - Required when create_dns_zones = true)
+>>>>>>> 8430131 (e2e-terraform: Support configurable ntp_ip and conditional Cloud DNS policy)
 reverse_domain_name = "250.10.in-addr.arpa."
 dns_policy_name     = "vcf-mgmt-sample-dns-policy"
 
+<<<<<<< HEAD
 # Optional explicit zone names (if create_dns_zones = false, provide existing GCP zone names):
 forward_zone_name = null # Defaults to "${resource_name_prefix}-forward-zone" when create_dns_zones = true
 reverse_zone_name = null # Defaults to "${resource_name_prefix}-reverse-zone" when create_dns_zones = true
+=======
+# Description: Time-to-live (TTL) in seconds for Cloud DNS record sets (A and PTR records).
+# Valid Values: Positive integer in seconds (e.g., 60, 300, 3600).
+# Default Value: 300 (Optional)
+dns_ttl = 300
+
+# Description: Resource name of the Cloud DNS inbound forwarding policy created on the VPC network. If null or setup_cloud_dns is false, no inbound DNS server policy is created.
+# Valid Values: Valid DNS policy name string (e.g., "vcf-mgmt-sample-dns-policy"), or null.
+# Default Value: null (Optional)
+dns_policy_name = "vcf-mgmt-sample-dns-policy"
+
+# Description: IP address for the NTP server forward DNS A record. If setup_cloud_dns is true and ntp_ip is provided, a forward DNS A record (ntp.<domain_name>) pointing to this IP is created. This field should only be specified for management clusters.
+# Valid Values: Valid IPv4 address string or null.
+# Default Value: null (Optional)
+ntp_ip = "10.200.0.30"
+
+>>>>>>> 8430131 (e2e-terraform: Support configurable ntp_ip and conditional Cloud DNS policy)
 
 # ==============================================================================
 # 3. L2 BROADCAST SUBNETS & ZONAL NEGs CONFIGURATION

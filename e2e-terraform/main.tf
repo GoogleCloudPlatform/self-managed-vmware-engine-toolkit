@@ -202,6 +202,7 @@ module "appliances" {
   reverse_zone_name    = module.vpc.reverse_zone_name
   dns_ttl              = var.dns_ttl
   setup_cloud_dns      = var.setup_cloud_dns
+  ntp_ip               = var.ntp_ip
 
   depends_on = [module.hosts]
 }

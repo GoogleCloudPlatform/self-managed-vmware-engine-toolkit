@@ -146,7 +146,17 @@ variable "dns_ttl" {
 variable "dns_policy_name" {
   type        = string
   default     = null
-  description = "Resource name of the Cloud DNS inbound forwarding policy to create on the VPC network. If omitted or null, no DNS policy is created by Terraform."
+  description = "Resource name of the Cloud DNS inbound forwarding policy to create on the VPC network. Created only when setup_cloud_dns is true. If omitted or null, no DNS policy is created by Terraform."
+}
+
+variable "ntp_ip" {
+  type        = string
+  default     = null
+  description = "IP address for the NTP server forward DNS A record. If setup_cloud_dns is true and ntp_ip is provided, an A record (ntp.<domain_name>) pointing to this IP is created. It should only be input for management clusters."
+  validation {
+    condition     = var.ntp_ip == null || can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", var.ntp_ip))
+    error_message = "ntp_ip must be a valid IPv4 address string (e.g. '169.254.169.254') or null."
+  }
 }
 
 # ==============================================================================
