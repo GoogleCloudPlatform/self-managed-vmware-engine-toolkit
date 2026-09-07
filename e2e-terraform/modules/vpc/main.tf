@@ -62,8 +62,8 @@ locals {
 
   effective_gcp_subnet_cidr = var.create_gcp_subnet ? var.gcp_subnet_cidr : data.google_compute_subnetwork.existing_gcp_subnet[0].ip_cidr_range
 
-  create_dns_policy         = var.dns_policy_name != null && var.dns_policy_name != ""
-  effective_dns_policy_name = var.dns_policy_name
+  create_dns_policy         = var.setup_cloud_dns && var.dns_policy_name != null && var.dns_policy_name != ""
+  effective_dns_policy_name = var.setup_cloud_dns ? var.dns_policy_name : null
 }
 
 # ==============================================================================

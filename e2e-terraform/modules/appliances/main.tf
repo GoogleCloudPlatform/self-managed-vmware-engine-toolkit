@@ -280,13 +280,13 @@ resource "google_dns_record_set" "appliance_forward_a_records" {
 }
 
 resource "google_dns_record_set" "ntp_forward_a_record" {
-  count        = (var.setup_cloud_dns && var.forward_zone_name != null && var.forward_zone_name != "") ? 1 : 0
+  count        = (var.setup_cloud_dns && var.ntp_ip != null && var.ntp_ip != "" && var.forward_zone_name != null && var.forward_zone_name != "") ? 1 : 0
   project      = var.project_id
   name         = "ntp.${local.formatted_domain_name}"
   managed_zone = var.forward_zone_name
   type         = "A"
   ttl          = var.dns_ttl
-  rrdatas      = ["169.254.169.254"]
+  rrdatas      = [var.ntp_ip]
 }
 
 resource "google_dns_record_set" "appliance_reverse_ptr_records" {

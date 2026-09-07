@@ -124,5 +124,5 @@ variable "reverse_zone_name" {
 variable "dns_policy_name" {
   type        = string
   default     = null
-  description = "Resource name of the Cloud DNS inbound forwarding policy to create on the VPC network. If omitted or null, no DNS policy is created by Terraform."
+  description = "Resource name of the Cloud DNS inbound forwarding policy to create on the VPC network. Created only when setup_cloud_dns is true. If omitted or null, no DNS policy is created by Terraform."
 }
