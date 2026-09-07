@@ -97,7 +97,7 @@ create_firewalls = true
 # 2.1 Cloud DNS Managed Zones, Records, GCP Subnet & Inbound Policy Creation
 # ------------------------------------------------------------------------------
 
-# Description: Master switch determining whether to set up Cloud DNS forward (A) and reverse (PTR) records, managed zones, and inbound DNS resolution policy for bare-metal ESXi hosts and VCF/NSX appliances. If setup_cloud_dns is set to true, a forward DNS A record for the NTP FQDN (pointing to "169.254.169.254") is also created. If setup_cloud_dns is set to false, the entire DNS-related section in the input (create_gcp_subnet, gcp_subnet_name, gcp_subnet_cidr, create_dns_zones, forward_zone_name, reverse_zone_name, reverse_domain_name, dns_ttl) can be skipped, and dns_server in python_scripts_input_config will be output as "<user_should_input>".
+# Description: Master switch determining whether to set up Cloud DNS forward (A) and reverse (PTR) records, managed zones, and inbound DNS resolution policy for bare-metal ESXi hosts and VCF/NSX appliances. If setup_cloud_dns is set to false, the entire DNS-related section in the input (create_gcp_subnet, gcp_subnet_name, gcp_subnet_cidr, create_dns_zones, forward_zone_name, reverse_zone_name, reverse_domain_name, dns_ttl, ntp_ip) can be skipped, and dns_server in python_scripts_input_config will be output as "<user_should_input>".
 # Valid Values: true, false
 # Default Value: true (Optional)
 setup_cloud_dns = true
@@ -142,10 +142,15 @@ reverse_domain_name = "250.10.in-addr.arpa."
 # Default Value: 300 (Optional)
 dns_ttl = 300
 
-# Description: Resource name of the Cloud DNS inbound forwarding policy created on the VPC network. If null, no inbound DNS server policy is created.
+# Description: Resource name of the Cloud DNS inbound forwarding policy created on the VPC network. If null or setup_cloud_dns is false, no inbound DNS server policy is created.
 # Valid Values: Valid DNS policy name string (e.g., "vcf-mgmt-sample-dns-policy"), or null.
 # Default Value: null (Optional)
 dns_policy_name = "vcf-mgmt-sample-dns-policy"
+
+# Description: IP address for the NTP server forward DNS A record. If setup_cloud_dns is true and ntp_ip is provided, a forward DNS A record (ntp.<domain_name>) pointing to this IP is created. This field should only be specified for management clusters.
+# Valid Values: Valid IPv4 address string or null.
+# Default Value: null (Optional)
+ntp_ip = "10.200.0.30"
 
 
 # ==============================================================================
