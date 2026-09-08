@@ -14,6 +14,7 @@
 
 locals {
   formatted_domain = length(regexall("\\.$", var.domain_name)) > 0 ? var.domain_name : "${var.domain_name}."
+  domain           = trimsuffix(var.domain_name, ".")
 
   # All active subnets in the VPC
   all_vpc_subnet_names = compact(concat([
@@ -59,32 +60,13 @@ locals {
   ]
   gcp_dns_reserved_ip = length(local.gcp_dns_reserved_ips) > 0 ? local.gcp_dns_reserved_ips[0] : null
 
-  # Host ESXi nodes FQDN and IP mapping
-  node_hosts_mapping = {
-    for i, name in module.hosts.node_names : name => {
-      fqdn = "${name}.${local.formatted_domain}"
-      ip   = module.hosts.node_primary_ips[i]
-      type = "esxi_host"
-    }
-  }
-
-  # VCF Management appliances FQDN and IP mapping
-  mgmt_appliances_mapping = {
-    for name, ip in module.appliances.management_forwarding_rule_ips : name => {
-      fqdn = "${name}.${local.formatted_domain}"
-      ip   = ip
-      type = "management_appliance"
-    }
-  }
-
-  # NSX Datapath Edge appliances FQDN and IP mapping
-  nsx_datapath_mapping = {
-    for name, ip in module.appliances.nsx_datapath_forwarding_rule_ips : name => {
-      fqdn = "${name}.${local.formatted_domain}"
-      ip   = ip
-      type = "nsx_datapath_edge"
-    }
-  }
+  # VSP IP range calculation
+  vsp_range_raw   = lookup(var.mgmt_ip_values, "vsp01", "")
+  vsp_range_parts = length(split("-", local.vsp_range_raw)) == 2 ? split("-", local.vsp_range_raw) : []
+  vsp_start_ip = length(local.vsp_range_parts) == 2 ? (
+    can(cidrhost("${local.vsp_range_parts[0]}/24", 0)) && module.subnets.mgmt_subnet_cidr != null ? cidrhost(format("%s/%s", local.vsp_range_parts[0], split("/", module.subnets.mgmt_subnet_cidr)[1]), tonumber(split(".", local.vsp_range_parts[0])[3]) + 1) : local.vsp_range_parts[0]
+  ) : (module.subnets.mgmt_subnet_cidr != null ? cidrhost(module.subnets.mgmt_subnet_cidr, 51) : null)
+  vsp_end_ip = length(local.vsp_range_parts) == 2 ? local.vsp_range_parts[1] : (module.subnets.mgmt_subnet_cidr != null ? cidrhost(module.subnets.mgmt_subnet_cidr, 80) : null)
 }
 
 # ==============================================================================
@@ -146,67 +128,16 @@ output "gcp_resources_self_links" {
 }
 
 # ==============================================================================
-# 2. HOST AND APPLIANCE TO FQDN & IP MAPPINGS
+# 2. NEG ATTACHMENT COMMANDS & STATUS
 # ==============================================================================
 
-output "host_and_appliance_mappings" {
-  value       = merge(local.node_hosts_mapping, local.mgmt_appliances_mapping, local.nsx_datapath_mapping)
-  description = "Comprehensive mapping of all bare-metal ESXi hosts and VCF/NSX appliances to their FQDN and assigned IP address"
+output "neg_attachment_commands" {
+  value       = module.hosts.neg_attachment_commands
+  description = "gcloud CLI commands to attach newly added ESXi host instances to Management and NSX NEGs in 'node_addition' mode, or confirmation that NEGs are already attached in 'cluster_creation' and 'appliance_addition' modes"
 }
 
 # ==============================================================================
-# 3. SUBNETWORK CIDRS AND HOST IP MAPS
-# ==============================================================================
-
-output "cluster_network_host_ips" {
-  value = {
-    primary = {
-      subnet_name = module.subnets.mgmt_subnet_name
-      subnet_cidr = module.subnets.mgmt_subnet_cidr
-      host_ips = {
-        for i, name in module.hosts.node_names : name => module.hosts.node_primary_ips[i]
-      }
-    }
-    vsan = {
-      subnet_name = module.subnets.vsan_subnet_name
-      subnet_cidr = module.subnets.vsan_subnet_cidr
-      vlan_id     = var.vsan_vlan_id
-      host_ips = {
-        for i, name in module.hosts.node_names : name => module.hosts.node_vsan_ips[i]
-      }
-    }
-    vmotion = {
-      subnet_name = module.subnets.vmotion_subnet_name
-      subnet_cidr = module.subnets.vmotion_subnet_cidr
-      vlan_id     = var.vmotion_vlan_id
-      host_ips = {
-        for i, name in module.hosts.node_names : name => module.hosts.node_vmotion_ips[i]
-      }
-    }
-    nsx_tep = {
-      subnet_name = module.subnets.nsx_tep_subnet_name
-      subnet_cidr = module.subnets.nsx_tep_subnet_cidr
-      vlan_id     = var.nsx_tep_vlan_id
-      host_ips = {
-        for i, name in module.hosts.node_names : name => module.hosts.node_nsx_tep_ips[i]
-      }
-    }
-    dynamic_nics = {
-      for idx, nic in var.additional_dynamic_nics : nic.name => {
-        subnet_name = nic.subnet_name
-        subnet_cidr = lookup(module.subnets.dynamic_subnet_cidrs, nic.subnet_name, null)
-        vlan_id     = nic.vlan_id
-        host_ips = {
-          for i, name in module.hosts.node_names : name => module.hosts.node_dynamic_nic_ips[nic.name][i]
-        }
-      }
-    }
-  }
-  description = "Subnetwork CIDRs and host name to host IP mappings for each cluster network (Primary, vSAN, vMotion, NSX TEP, and dynamic NICs)"
-}
-
-# ==============================================================================
-# 4. PYTHON AUTOMATION SCRIPT INPUT CONFIGURATION
+# 3. PYTHON AUTOMATION SCRIPT INPUT CONFIGURATION
 # ==============================================================================
 
 output "python_scripts_input_config" {
@@ -241,10 +172,10 @@ output "python_scripts_input_config" {
       vcf_appliance_local_user_password_secret = "<user_should_input>"
 
       # Forwarding rule resource for SDDC Manager / VCF Installer
-      vcf_installer_ip_source = lookup(module.appliances.management_forwarding_rules, "sddc-manager", lookup(module.appliances.management_forwarding_rules, "vcf", lookup(module.appliances.management_forwarding_rules, "cloudproxy", null)))
+      vcf_installer_ip_source = lookup(module.appliances.management_forwarding_rules, "sddcm", null)
 
       # Fully qualified domain name of the SDDC Manager (VCF Installer)
-      vcf_installer_fqdn = "sddc-manager.${local.formatted_domain}"
+      vcf_installer_fqdn = "sddcm.${local.formatted_domain}"
 
       # Cloud DNS Inbound Reserved IP for the GCP subnet (populated when setup_cloud_dns is true; set to '<user_should_input>' when setup_cloud_dns is false)
       dns_server = var.setup_cloud_dns ? local.gcp_dns_reserved_ip : "<user_should_input>"
@@ -254,10 +185,306 @@ output "python_scripts_input_config" {
 }
 
 # ==============================================================================
-# 5. NEG ATTACHMENT COMMANDS & STATUS
+# 4. MANAGEMENT DOMAIN DEPLOYMENT INPUT CONFIGURATION
 # ==============================================================================
 
-output "neg_attachment_commands" {
-  value       = module.hosts.neg_attachment_commands
-  description = "gcloud CLI commands to attach newly added ESXi host instances to Management and NSX NEGs in 'node_addition' mode, or confirmation that NEGs are already attached in 'cluster_creation' and 'appliance_addition' modes"
+output "management_domain_deployment_input_config" {
+  value = {
+    version         = can(regex("esxi-([0-9a-zA-Z]+)-([0-9a-zA-Z]+)-([0-9a-zA-Z]+)", var.esxi_image)) ? join(".", regex("esxi-([0-9a-zA-Z]+)-([0-9a-zA-Z]+)-([0-9a-zA-Z]+)", var.esxi_image)) : "<user_should_input>"
+    vcfInstanceName = "vcf1"
+    sddcId          = "mgmt-domain"
+    ceipEnabled     = false
+    workflowType    = "VCF"
+
+    dnsSpec = {
+      subdomain   = local.domain
+      nameservers = var.setup_cloud_dns ? local.gcp_dns_reserved_ip : "<user_should_input>"
+    }
+
+    ntpServers = [
+      "ntp.${local.domain}"
+    ]
+
+    hostSpecs = [
+      for name in module.hosts.node_names : {
+        hostname      = name
+        sslThumbprint = ""
+        credentials = {
+          username = "root"
+          password = "Default123!Default123!"
+        }
+      }
+    ]
+
+    vcenterSpec = {
+      vcenterHostname       = "vc01.${local.domain}"
+      vmSize                = "medium"
+      storageSize           = "lstorage"
+      rootVcenterPassword   = "Default123!Default123!"
+      adminUserSsoPassword  = "Default123!Default123!"
+      ssoDomain             = "gve.local"
+      version               = "<user_should_input>"
+      useExistingDeployment = false
+    }
+
+    clusterSpec = {
+      datacenterName = "mgmt-domain-dc01"
+      clusterName    = "mgmt-domain-cl01"
+    }
+
+    dvsSpecs = [
+      {
+        dvsName = "mgmt-domain-cl01-vds01"
+        vmnicsToUplinks = [
+          {
+            id     = "vmnic0"
+            uplink = "uplink0"
+          }
+        ]
+        networks = [
+          "MANAGEMENT",
+          "VM_MANAGEMENT",
+          "VMOTION",
+          "VSAN"
+        ]
+        mtu = 8700
+        nsxTeamings = [
+          {
+            policy        = "LOADBALANCE_SRCID"
+            activeUplinks = [
+              "uplink0"
+            ]
+          }
+        ]
+        nsxtSwitchConfig = {
+          transportZones = [
+            {
+              name          = "overlay-tz-mgmt-nsxt"
+              transportType = "OVERLAY"
+            }
+          ]
+          hostSwitchOperationalMode = "STANDARD"
+        }
+      }
+    ]
+
+    nsxtSpec = {
+      vipFqdn = "nsx01.${local.domain}"
+      nsxtManagers = [
+        {
+          hostname = "nsx02.${local.domain}"
+        },
+        {
+          hostname = "nsx03.${local.domain}"
+        },
+        {
+          hostname = "nsx04.${local.domain}"
+        }
+      ]
+      rootNsxtManagerPassword = "Default123!Default123!"
+      nsxtAdminPassword       = "Default123!Default123!"
+      nsxtAuditPassword       = "Default123!Default123!"
+      transportVlanId         = var.nsx_tep_vlan_id
+      nsxtManagerSize         = "medium"
+      ipAddressPoolSpec = {
+        name        = "mgmt-domain-cl01-tep01"
+        description = "mgmt-domain-cl01-tep01 descr"
+        subnets = [
+          {
+            cidr    = module.subnets.nsx_tep_subnet_cidr
+            gateway = module.subnets.nsx_tep_subnet_cidr != null ? cidrhost(module.subnets.nsx_tep_subnet_cidr, 1) : null
+            ipAddressPoolRanges = [
+              {
+                start = module.subnets.nsx_tep_subnet_cidr != null ? cidrhost(module.subnets.nsx_tep_subnet_cidr, 3) : null
+                end   = module.subnets.nsx_tep_subnet_cidr != null ? cidrhost(module.subnets.nsx_tep_subnet_cidr, 100) : null
+              }
+            ]
+          }
+        ]
+      }
+      version               = "<user_should_input>"
+      useExistingDeployment = false
+    }
+
+    networkSpecs = [
+      {
+        networkType              = "MANAGEMENT"
+        subnet                   = module.subnets.mgmt_subnet_cidr
+        gateway                  = module.subnets.mgmt_subnet_cidr != null ? cidrhost(module.subnets.mgmt_subnet_cidr, 1) : null
+        vlanId                   = 0
+        mtu                      = 8700
+        portGroupKey             = "mgmt-domain-cl01-vds01-pg-esx-mgmt"
+        activeUplinks            = [
+          "uplink0"
+        ]
+        teamingPolicy            = "loadbalance_loadbased"
+        ipAddressVersion         = "IPv4"
+        ipAddressAssignmentMode  = "STATIC"
+      },
+      {
+        networkType              = "VM_MANAGEMENT"
+        subnet                   = module.subnets.mgmt_subnet_cidr
+        gateway                  = module.subnets.mgmt_subnet_cidr != null ? cidrhost(module.subnets.mgmt_subnet_cidr, 1) : null
+        vlanId                   = 0
+        mtu                      = 8700
+        portGroupKey             = "mgmt-domain-cl01-vds01-pg-vm-mgmt"
+        activeUplinks            = [
+          "uplink0"
+        ]
+        teamingPolicy            = "loadbalance_loadbased"
+        ipAddressVersion         = "IPv4"
+        ipAddressAssignmentMode  = "STATIC"
+      },
+      {
+        networkType              = "VMOTION"
+        subnet                   = module.subnets.vmotion_subnet_cidr
+        gateway                  = module.subnets.vmotion_subnet_cidr != null ? cidrhost(module.subnets.vmotion_subnet_cidr, 1) : null
+        includeIpAddressRanges   = [
+          {
+            startIpAddress = module.subnets.vmotion_subnet_cidr != null ? cidrhost(module.subnets.vmotion_subnet_cidr, 3) : null
+            endIpAddress   = module.subnets.vmotion_subnet_cidr != null ? cidrhost(module.subnets.vmotion_subnet_cidr, 100) : null
+          }
+        ]
+        vlanId                   = var.vmotion_vlan_id
+        mtu                      = 8700
+        portGroupKey             = "mgmt-domain-cl01-vds01-pg-vmotion"
+        activeUplinks            = [
+          "uplink0"
+        ]
+        teamingPolicy            = "loadbalance_loadbased"
+        ipAddressVersion         = "IPv4"
+        ipAddressAssignmentMode  = "STATIC"
+      },
+      {
+        networkType              = "VSAN"
+        subnet                   = module.subnets.vsan_subnet_cidr
+        gateway                  = module.subnets.vsan_subnet_cidr != null ? cidrhost(module.subnets.vsan_subnet_cidr, 1) : null
+        includeIpAddressRanges   = [
+          {
+            startIpAddress = module.subnets.vsan_subnet_cidr != null ? cidrhost(module.subnets.vsan_subnet_cidr, 3) : null
+            endIpAddress   = module.subnets.vsan_subnet_cidr != null ? cidrhost(module.subnets.vsan_subnet_cidr, 100) : null
+          }
+        ]
+        vlanId                   = var.vsan_vlan_id
+        mtu                      = 8700
+        portGroupKey             = "mgmt-domain-cl01-vds01-pg-vsan"
+        activeUplinks            = [
+          "uplink0"
+        ]
+        teamingPolicy            = "loadbalance_loadbased"
+        ipAddressVersion         = "IPv4"
+        ipAddressAssignmentMode  = "STATIC"
+      }
+    ]
+
+    sddcManagerSpec = {
+      hostname              = "sddcm.${local.domain}"
+      rootPassword          = "Default123!Default123!"
+      sshPassword           = "Default123!Default123!"
+      localUserPassword     = "Default123!Default123!"
+      version               = "<user_should_input>"
+      useExistingDeployment = false
+      sslThumbprint         = ""
+    }
+
+    managementPoolName = "mgmt-domain-np01"
+
+    datastoreSpec = {
+      vsanSpec = {
+        datastoreName      = "mgmt-domain-cl01-ds-vsan01"
+        vsanDedup          = false
+        failuresToTolerate = 1
+        esaConfig = {
+          enabled = true
+        }
+        encryptionConfig = {
+          dataInTransitConfig = {
+            enable = false
+          }
+        }
+      }
+    }
+
+    vspClusterSpec = {
+      ipv4Pool = {
+        ipRange = {
+          startIpAddress = local.vsp_start_ip
+          endIpAddress   = local.vsp_end_ip
+        }
+      }
+      platformFqdn            = "vsp01-1.${local.domain}"
+      instanceFqdn            = "shared01.${local.domain}"
+      fleetFqdn               = "fleetlcm.${local.domain}"
+      size                    = "medium"
+      name                    = "vmsp-01"
+      internalClusterCidrIpv4 = "198.18.0.0/15"
+      systemUserPassword      = "Default123!Default123!"
+    }
+
+    fleetLcmSpec = {
+      size     = "medium"
+      hostname = "fleetlcm.${local.domain}"
+    }
+
+    sddcLcmSpec = {
+      size     = "medium"
+      hostname = "shared01.${local.domain}"
+    }
+
+    fleetDepotSpec = {
+      size = "medium"
+    }
+
+    telemetryAcceptorSpec = {
+      size = "small"
+    }
+
+    vidbSpec = {
+      size     = "medium"
+      hostname = "vidb.${local.domain}"
+    }
+
+    saltSpec = {
+      size = "medium"
+    }
+
+    saltRaasSpec = {
+      size = "medium"
+    }
+
+    vcfOperationsSpec = {
+      nodes = [
+        {
+          hostname         = "ops01.${local.domain}"
+          rootUserPassword = "Default123!Default123!"
+          type             = "master"
+        },
+        {
+          hostname         = "ops02.${local.domain}"
+          rootUserPassword = "Default123!Default123!"
+          type             = "replica"
+        },
+        {
+          hostname         = "ops03.${local.domain}"
+          rootUserPassword = "Default123!Default123!"
+          type             = "data"
+        }
+      ]
+      applianceSize         = "medium"
+      adminUserPassword     = "Default123!Default123!"
+      useExistingDeployment = false
+    }
+
+    vcfOperationsCollectorSpec = {
+      applianceSize         = "standard"
+      hostname              = "collector.${local.domain}"
+      useExistingDeployment = false
+      rootUserPassword      = "Default123!Default123!"
+    }
+
+    licenseServerSpec = {
+      hostname = "license.${local.domain}"
+    }
+  }
+  description = "Management domain deployment input configuration schema and values required for VCF Cloud Foundation deployment"
 }
