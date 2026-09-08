@@ -184,3 +184,58 @@ def validate_subnet_cidr_size(cidr: str) -> None:
         "Google Cloud standard subnets require a minimum size of /29 (8 total IPs, 4 usable)."
     )
 
+
+def validate_subnet_cidr_not_in_use(
+    target_cidr: str,
+    existing_subnets: Any,
+    gcp_client: Any,
+) -> None:
+  """Validates that target CIDR does not overlap with or match any existing subnetworks.
+
+  Args:
+      target_cidr: Target IPv4 CIDR range string (e.g. '10.0.100.0/29').
+      existing_subnets: Iterable of SubnetworkInfo objects representing existing subnets.
+      gcp_client: Initialized GCPClient to fetch subnet CIDRs if unpopulated.
+
+  Raises:
+      models.ValidationError: If target CIDR syntax is invalid, or if it overlaps
+        with or is already used by an existing subnet.
+  """
+  if not target_cidr or not isinstance(target_cidr, str):
+    return
+
+  try:
+    target_net = ipaddress.IPv4Network(target_cidr.strip(), strict=False)
+  except ValueError as exc:
+    raise models.ValidationError(
+        f"Invalid subnet CIDR format '{target_cidr}': {exc}"
+    ) from exc
+
+  checked_uris = set()
+  for subnet_info in existing_subnets or []:
+    if not subnet_info or not getattr(subnet_info, "subnetwork_uri", None):
+      continue
+    sub_uri = subnet_info.subnetwork_uri
+    if sub_uri in checked_uris:
+      continue
+    checked_uris.add(sub_uri)
+
+    if not getattr(subnet_info, "cidr", None):
+      subnet_info.cidr = gcp_client.fetch_subnetwork_cidr(sub_uri)
+
+    if subnet_info.cidr:
+      try:
+        existing_net = ipaddress.IPv4Network(
+            subnet_info.cidr.strip(), strict=False
+        )
+      except ValueError:
+        continue
+
+      if target_net.overlaps(existing_net):
+        raise models.ValidationError(
+            f"Configured offline depot subnet CIDR '{target_cidr}' overlaps with"
+            f" or is already used by existing subnet '{sub_uri}'"
+            f" with CIDR '{subnet_info.cidr}'!"
+        )
+
+

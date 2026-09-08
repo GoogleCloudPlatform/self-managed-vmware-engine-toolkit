@@ -435,28 +435,28 @@ mgmt_ip_address_type = "reserved_custom"
 # Default Value: {} (Optional)
 mgmt_ip_values = {
   # VCF Control Plane Core Services
-  "sddcm"               = "10.200.0.9"              # VCF SDDC Manager Appliance
-  "collector"           = "10.200.0.10"             # VMware Cloud Proxy Appliance
-  "vc01"                = "10.200.0.11"             # Management vCenter Server Appliance (VCSA)
-  "license"             = "10.200.0.16"             # VCF License Manager Service
-  "shared01"            = "10.200.0.17"             # VCF Instance Service Manager
-  "vidb"                = "10.200.0.18"             # VMware Workspace ONE Access / Identity Broker
-  "vsp01"               = "10.200.0.50-10.200.0.80" # VCF Service Runtime Platform IP Pool
+  "sddcm"     = "10.200.0.9"              # VCF SDDC Manager Appliance
+  "collector" = "10.200.0.10"             # VMware Cloud Proxy Appliance
+  "vc01"      = "10.200.0.11"             # Management vCenter Server Appliance (VCSA)
+  "license"   = "10.200.0.16"             # VCF License Manager Service
+  "shared01"  = "10.200.0.17"             # VCF Instance Service Manager
+  "vidb"      = "10.200.0.18"             # VMware Workspace ONE Access / Identity Broker
+  "vsp01"     = "10.200.0.50-10.200.0.80" # VCF Service Runtime Platform IP Pool
 
   # VMware Aria Suite Operations & Automation Services
-  "ops01"               = "10.200.0.12" # VMware Aria Operations Primary Node
-  "ops02"               = "10.200.0.24" # VMware Aria Operations Replica Node
-  "ops03"               = "10.200.0.25" # VMware Aria Operations Data Node
-  "fleetlcm"            = "10.200.0.13" # VMware Aria Operations Fleet Management Service
+  "ops01"    = "10.200.0.12" # VMware Aria Operations Primary Node
+  "ops02"    = "10.200.0.24" # VMware Aria Operations Replica Node
+  "ops03"    = "10.200.0.25" # VMware Aria Operations Data Node
+  "fleetlcm" = "10.200.0.13" # VMware Aria Operations Fleet Management Service
   # "vcfautomation"          = "10.200.0.20" # VMware Aria Automation Core Appliance (Required if and only if VCF Automation deployment is intended)
   # "vcfruntime"             = "10.200.0.21" # VMware Aria Automation Orchestrator Runtime (Required if and only if VCF Automation deployment is intended)
   # "vcf-automation-node-ips" = "10.200.0.81-10.200.0.86" # VCF Automation Cluster Node IP Pool (6 nodes, required if and only if VCF Automation is deployed)
 
   # NSX Management Cluster & Management Interfaces
-  "nsx01"               = "10.200.0.14" # NSX Management Cluster Floating Virtual IP (VIP)
-  "nsx02"               = "10.200.0.15" # NSX Manager Node 1 Management IP
-  "nsx03"               = "10.200.0.22" # NSX Manager Node 2 Management IP
-  "nsx04"               = "10.200.0.23" # NSX Manager Node 3 Management IP
+  "nsx01" = "10.200.0.14" # NSX Management Cluster Floating Virtual IP (VIP)
+  "nsx02" = "10.200.0.15" # NSX Manager Node 1 Management IP
+  "nsx03" = "10.200.0.22" # NSX Manager Node 2 Management IP
+  "nsx04" = "10.200.0.23" # NSX Manager Node 3 Management IP
   # "nsx-edge-0" = "10.200.0.26" # NSX Edge Node 1 Management Interface (Required if and only if NSX Edge appliance is being deployed)
   # "nsx-edge-1" = "10.200.0.27" # NSX Edge Node 2 Management Interface (Required if and only if NSX Edge appliance is being deployed)
 }

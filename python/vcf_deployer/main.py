@@ -203,22 +203,20 @@ def load_config(config_file_path: str) -> models.DeployerConfig:
         vcf_appliance_root_password_secret=vcf_data[
             constants.VCFConfigKeys.VCF_APPLIANCE_ROOT_PASSWORD_SECRET
         ],
-        vcf_appliance_local_user = (
-            vcf_data.get(constants.VCFConfigKeys.VCF_APPLIANCE_LOCAL_USER) or "vcf"
+        vcf_appliance_local_user=(
+            vcf_data.get(constants.VCFConfigKeys.VCF_APPLIANCE_LOCAL_USER)
+            or "vcf"
         ),
         vcf_appliance_local_user_password_secret=vcf_data[
             constants.VCFConfigKeys.VCF_APPLIANCE_LOCAL_USER_PASSWORD_SECRET
         ],
-        vcf_installer_fqdn=vcf_data[
-            constants.VCFConfigKeys.VCF_INSTALLER_FQDN
-        ],
+        vcf_installer_fqdn=str(
+            vcf_data[constants.VCFConfigKeys.VCF_INSTALLER_FQDN]
+        ).strip().rstrip("."),
         vcf_installer_ip_source=vcf_data[
             constants.VCFConfigKeys.VCF_INSTALLER_IP_SOURCE
         ],
         offline_depot_subnet_cidr=cidr,
-        offline_depot_subnet_name=vcf_data.get(
-            constants.VCFConfigKeys.OFFLINE_DEPOT_SUBNET_NAME
-        ),
         dns_server=vcf_data.get(constants.VCFConfigKeys.DNS_SERVER),
     )
 

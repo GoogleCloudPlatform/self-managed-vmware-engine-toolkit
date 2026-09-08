@@ -180,18 +180,21 @@ def deconstruct_fqdn(fqdn: str) -> Tuple[str, str, str]:
   Raises:
       models.ValidationError: If FQDN length or domain label syntax is invalid.
   """
-  if not fqdn or len(fqdn) > constants.NetworkingDefaults.MAX_FQDN_LENGTH:
+  if not fqdn:
+    raise models.ValidationError("Invalid FQDN: FQDN must not be empty.")
+  clean_fqdn = str(fqdn).strip().rstrip(".")
+  if not clean_fqdn or len(clean_fqdn) > constants.NetworkingDefaults.MAX_FQDN_LENGTH:
     raise models.ValidationError(f"Invalid FQDN length: '{fqdn}'")
-  parts = fqdn.split(".", 1)
+  parts = clean_fqdn.split(".", 1)
   if len(parts) < 2:
     raise models.ValidationError(f"Invalid FQDN structure provided: '{fqdn}'")
-  for label in fqdn.split("."):
+  for label in clean_fqdn.split("."):
     if not label or not LABEL_REGEX.match(label):
       raise models.ValidationError(
           f"FQDN label '{label}' fails RFC 1123 conformance in '{fqdn}'"
       )
   vm_name, domain_and_search = parts[0], parts[1]
-  logger.debug("Deconstructed FQDN '%s' -> VM: '%s'", fqdn, vm_name)
+  logger.debug("Deconstructed FQDN '%s' -> VM: '%s'", clean_fqdn, vm_name)
   return vm_name, domain_and_search, domain_and_search
 
 

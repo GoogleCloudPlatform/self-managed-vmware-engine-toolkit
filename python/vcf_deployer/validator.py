@@ -95,12 +95,22 @@ class PreDeploymentValidator:
           f"Target node '{target_details.instance_resource_string}' has no attached subnetworks to determine VPC network."
       )
     discovered_vpc = target_details.subnetworks[0].network_uri
+
+    all_existing_subnets = []
+    for node_det in esxi_details_map.values():
+      all_existing_subnets.extend(node_det.subnetworks)
+
+    network_utils.validate_subnet_cidr_not_in_use(
+        vcf_cfg.offline_depot_subnet_cidr,
+        all_existing_subnets,
+        self.gcp,
+    )
+
     infra_mgr = offline_depot_infra.OfflineDepotInfraManager(
         config=self.config,
         gcp=self.gcp,
         vpc_network=discovered_vpc,
         cidr=vcf_cfg.offline_depot_subnet_cidr,
-        subnet_name=vcf_cfg.offline_depot_subnet_name,
     )
     depot_infra = infra_mgr.setup_offline_depot_infrastructure()
     depot_ip = depot_infra.get("psc_ip") if depot_infra else None

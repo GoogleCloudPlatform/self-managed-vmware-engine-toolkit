@@ -60,12 +60,11 @@ class VCFDeploymentConfig:
 
   target_gce_node: str
   vcf_appliance_root_password_secret: str
-  vcf_appliance_local_user: str
   vcf_appliance_local_user_password_secret: str
   vcf_installer_fqdn: str
   vcf_installer_ip_source: Any
   offline_depot_subnet_cidr: str
-  offline_depot_subnet_name: Optional[str] = None
+  vcf_appliance_local_user: str = "vcf"
   dns_server: Optional[str] = None
 
 
