@@ -140,6 +140,8 @@ class TestMain(unittest.TestCase):
 
   def test_load_config_with_trailing_dot_fqdn(self):
     """Verifies loading config with trailing dot in vcf_installer_fqdn strips dot cleanly."""
+  def test_load_config_with_trailing_dot_fqdn(self):
+    """Verifies loading config with trailing dot in vcf_installer_fqdn strips dot cleanly."""
     valid_data = {
         "project": "p",
         "zone": "z",
