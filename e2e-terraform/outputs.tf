@@ -159,11 +159,8 @@ output "python_scripts_input_config" {
       # Target bare-metal instance name to host the initial deployment workloads
       target_gce_node = length(module.hosts.node_names) > 0 ? module.hosts.node_names[0] : "<user_should_input>"
 
-      # Subnet name for the Offline Depot PSC endpoint. The Python script checks if this subnet exists and uses it, or creates it if it does not already exist. Set to gcp_subnet_name if setup_cloud_dns is true.
-      offline_depot_subnet_name = var.setup_cloud_dns ? module.vpc.gcp_subnet_name : "<user_should_input>"
-
-      # Subnet CIDR for the Offline Depot PSC endpoint. Set to gcp_subnet_cidr if setup_cloud_dns is true.
-      offline_depot_subnet_cidr = var.setup_cloud_dns ? module.vpc.gcp_subnet_cidr : "<user_should_input>"
+      # Subnet CIDR for the dedicated Offline Depot PSC endpoint (e.g. /29 subnet). Must not overlap with or reuse any existing subnets in the VPC
+      offline_depot_subnet_cidr = "<user_should_input>"
 
       # Secret Manager secret resource path containing the VCF appliance root password
       vcf_appliance_root_password_secret = "<user_should_input>"
@@ -172,10 +169,10 @@ output "python_scripts_input_config" {
       vcf_appliance_local_user_password_secret = "<user_should_input>"
 
       # Forwarding rule resource for SDDC Manager / VCF Installer
-      vcf_installer_ip_source = lookup(module.appliances.management_forwarding_rules, "sddcm", null)
+      vcf_installer_ip_source = lookup(module.appliances.management_forwarding_rules, "sddcm", null) != null ? replace(module.appliances.management_forwarding_rules["sddcm"], "https://www.googleapis.com/compute/v1/", "") : null
 
-      # Fully qualified domain name of the SDDC Manager (VCF Installer)
-      vcf_installer_fqdn = "sddcm.${local.formatted_domain}"
+      # Fully qualified domain name of the SDDC Manager (VCF Installer) without trailing dot
+      vcf_installer_fqdn = "sddcm.${local.domain}"
 
       # Cloud DNS Inbound Reserved IP for the GCP subnet (populated when setup_cloud_dns is true; set to '<user_should_input>' when setup_cloud_dns is false)
       dns_server = var.setup_cloud_dns ? local.gcp_dns_reserved_ip : "<user_should_input>"
@@ -250,7 +247,7 @@ output "management_domain_deployment_input_config" {
         mtu = 8700
         nsxTeamings = [
           {
-            policy        = "LOADBALANCE_SRCID"
+            policy = "LOADBALANCE_SRCID"
             activeUplinks = [
               "uplink0"
             ]
@@ -308,72 +305,72 @@ output "management_domain_deployment_input_config" {
 
     networkSpecs = [
       {
-        networkType              = "MANAGEMENT"
-        subnet                   = module.subnets.mgmt_subnet_cidr
-        gateway                  = module.subnets.mgmt_subnet_cidr != null ? cidrhost(module.subnets.mgmt_subnet_cidr, 1) : null
-        vlanId                   = 0
-        mtu                      = 8700
-        portGroupKey             = "mgmt-domain-cl01-vds01-pg-esx-mgmt"
-        activeUplinks            = [
+        networkType  = "MANAGEMENT"
+        subnet       = module.subnets.mgmt_subnet_cidr
+        gateway      = module.subnets.mgmt_subnet_cidr != null ? cidrhost(module.subnets.mgmt_subnet_cidr, 1) : null
+        vlanId       = 0
+        mtu          = 8700
+        portGroupKey = "mgmt-domain-cl01-vds01-pg-esx-mgmt"
+        activeUplinks = [
           "uplink0"
         ]
-        teamingPolicy            = "loadbalance_loadbased"
-        ipAddressVersion         = "IPv4"
-        ipAddressAssignmentMode  = "STATIC"
+        teamingPolicy           = "loadbalance_loadbased"
+        ipAddressVersion        = "IPv4"
+        ipAddressAssignmentMode = "STATIC"
       },
       {
-        networkType              = "VM_MANAGEMENT"
-        subnet                   = module.subnets.mgmt_subnet_cidr
-        gateway                  = module.subnets.mgmt_subnet_cidr != null ? cidrhost(module.subnets.mgmt_subnet_cidr, 1) : null
-        vlanId                   = 0
-        mtu                      = 8700
-        portGroupKey             = "mgmt-domain-cl01-vds01-pg-vm-mgmt"
-        activeUplinks            = [
+        networkType  = "VM_MANAGEMENT"
+        subnet       = module.subnets.mgmt_subnet_cidr
+        gateway      = module.subnets.mgmt_subnet_cidr != null ? cidrhost(module.subnets.mgmt_subnet_cidr, 1) : null
+        vlanId       = 0
+        mtu          = 8700
+        portGroupKey = "mgmt-domain-cl01-vds01-pg-vm-mgmt"
+        activeUplinks = [
           "uplink0"
         ]
-        teamingPolicy            = "loadbalance_loadbased"
-        ipAddressVersion         = "IPv4"
-        ipAddressAssignmentMode  = "STATIC"
+        teamingPolicy           = "loadbalance_loadbased"
+        ipAddressVersion        = "IPv4"
+        ipAddressAssignmentMode = "STATIC"
       },
       {
-        networkType              = "VMOTION"
-        subnet                   = module.subnets.vmotion_subnet_cidr
-        gateway                  = module.subnets.vmotion_subnet_cidr != null ? cidrhost(module.subnets.vmotion_subnet_cidr, 1) : null
-        includeIpAddressRanges   = [
+        networkType = "VMOTION"
+        subnet      = module.subnets.vmotion_subnet_cidr
+        gateway     = module.subnets.vmotion_subnet_cidr != null ? cidrhost(module.subnets.vmotion_subnet_cidr, 1) : null
+        includeIpAddressRanges = [
           {
             startIpAddress = module.subnets.vmotion_subnet_cidr != null ? cidrhost(module.subnets.vmotion_subnet_cidr, 3) : null
             endIpAddress   = module.subnets.vmotion_subnet_cidr != null ? cidrhost(module.subnets.vmotion_subnet_cidr, 100) : null
           }
         ]
-        vlanId                   = var.vmotion_vlan_id
-        mtu                      = 8700
-        portGroupKey             = "mgmt-domain-cl01-vds01-pg-vmotion"
-        activeUplinks            = [
+        vlanId       = var.vmotion_vlan_id
+        mtu          = 8700
+        portGroupKey = "mgmt-domain-cl01-vds01-pg-vmotion"
+        activeUplinks = [
           "uplink0"
         ]
-        teamingPolicy            = "loadbalance_loadbased"
-        ipAddressVersion         = "IPv4"
-        ipAddressAssignmentMode  = "STATIC"
+        teamingPolicy           = "loadbalance_loadbased"
+        ipAddressVersion        = "IPv4"
+        ipAddressAssignmentMode = "STATIC"
       },
       {
-        networkType              = "VSAN"
-        subnet                   = module.subnets.vsan_subnet_cidr
-        gateway                  = module.subnets.vsan_subnet_cidr != null ? cidrhost(module.subnets.vsan_subnet_cidr, 1) : null
-        includeIpAddressRanges   = [
+        networkType = "VSAN"
+        subnet      = module.subnets.vsan_subnet_cidr
+        gateway     = module.subnets.vsan_subnet_cidr != null ? cidrhost(module.subnets.vsan_subnet_cidr, 1) : null
+        includeIpAddressRanges = [
           {
             startIpAddress = module.subnets.vsan_subnet_cidr != null ? cidrhost(module.subnets.vsan_subnet_cidr, 3) : null
             endIpAddress   = module.subnets.vsan_subnet_cidr != null ? cidrhost(module.subnets.vsan_subnet_cidr, 100) : null
           }
         ]
-        vlanId                   = var.vsan_vlan_id
-        mtu                      = 8700
-        portGroupKey             = "mgmt-domain-cl01-vds01-pg-vsan"
-        activeUplinks            = [
+        vlanId       = var.vsan_vlan_id
+        mtu          = 8700
+        portGroupKey = "mgmt-domain-cl01-vds01-pg-vsan"
+        activeUplinks = [
           "uplink0"
         ]
-        teamingPolicy            = "loadbalance_loadbased"
-        ipAddressVersion         = "IPv4"
-        ipAddressAssignmentMode  = "STATIC"
+        teamingPolicy           = "loadbalance_loadbased"
+        ipAddressVersion        = "IPv4"
+        ipAddressAssignmentMode = "STATIC"
       }
     ]
 

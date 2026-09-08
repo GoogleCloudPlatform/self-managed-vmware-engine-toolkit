@@ -13,9 +13,7 @@
   "vcf_deployment_config": {
     // Target bare-metal node hosting the initial deployment workloads
     "target_gce_node": "esxi-node-0",
-    // Name of subnet for Offline Depot PSC endpoint. If gcp_subnet was created during Cloud DNS configuration from E2E TF, use that subnet name here; the script checks if it exists and uses it, or creates it if not present.
-    "offline_depot_subnet_name": "offline-depot-subnet-us-central1",
-    // IPv4 CIDR range for offline depot subnetwork (e.g. /29)
+    // IPv4 CIDR range for dedicated offline depot subnetwork (e.g. /29). Must not overlap with or reuse any existing subnets in the VPC
     "offline_depot_subnet_cidr": "10.0.100.0/29",
     // Secret Manager secret containing the VCF appliance root password
     "vcf_appliance_root_password_secret": "vcf-appliance-root-password-secret",

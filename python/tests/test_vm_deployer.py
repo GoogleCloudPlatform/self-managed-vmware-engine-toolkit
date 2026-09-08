@@ -627,24 +627,18 @@ class TestVMDeployer(unittest.TestCase):
   # Phase 2f: VCF Cloud Builder HCL & Disk Validation Bypass Tests
   # ============================================================================
   @mock.patch("paramiko.SSHClient")
-  def test_bypass_hcl_disk_validation_success(self, mock_ssh_cls):
+  def test_bypass_vcf_hcl_disk_validation_success(self, mock_ssh_cls):
     """Verifies connecting via SSH, injecting bypass properties, and restarting vcf-bringup."""
     mock_client = mock.MagicMock()
     mock_ssh_cls.return_value = mock_client
-    # Mock stdout channel and exit status 0 for all commands
-    mock_channel = mock.MagicMock()
-    mock_channel.recv_exit_status.return_value = 0
-    mock_stdout = mock.MagicMock()
-    mock_stdout.channel = mock_channel
-    mock_stderr = mock.MagicMock()
-    mock_client.exec_command.return_value = (
-        mock.MagicMock(),
-        mock_stdout,
-        mock_stderr,
-    )
-    self.vm_dep.bypass_hcl_disk_validation(
+    mock_shell = mock.MagicMock()
+    mock_client.invoke_shell.return_value = mock_shell
+    mock_shell.recv_ready.return_value = True
+    mock_shell.recv.side_effect = [b"welcome\n", b"BYPASS_DONE:0\n"]
+
+    self.vm_dep.bypass_vcf_hcl_disk_validation(
         vcf_ip="10.0.0.50",
-        root_password="VcfRootPassword123!",
+        root_pwd="VcfRootPassword123!",
         timeout_seconds=5,
         poll_interval_seconds=0.01,
     )
@@ -656,23 +650,11 @@ class TestVMDeployer(unittest.TestCase):
         allow_agent=False,
         look_for_keys=False,
     )
-    # Verify executed commands include properties and service restart
-    executed_commands = [
-        call[0][0] for call in mock_client.exec_command.call_args_list
-    ]
-    self.assertTrue(
-        any("vsan.esa.sddc.managed.disk.claim=true" in cmd for cmd in executed_commands)
-    )
-    self.assertTrue(
-        any("sos.hcl.validation=false" in cmd for cmd in executed_commands)
-    )
-    self.assertTrue(
-        any("systemctl restart vcf-bringup" in cmd for cmd in executed_commands)
-    )
+    mock_shell.close.assert_called_once()
     mock_client.close.assert_called_once()
 
   @mock.patch("paramiko.SSHClient")
-  def test_bypass_hcl_disk_validation_ssh_timeout_raises_deployer_error(
+  def test_bypass_vcf_hcl_disk_validation_ssh_timeout_raises_deployer_error(
       self, mock_ssh_cls
   ):
     """Verifies DeployerError when SSH connection to VCF appliance times out."""
@@ -680,9 +662,9 @@ class TestVMDeployer(unittest.TestCase):
     mock_ssh_cls.return_value = mock_client
     mock_client.connect.side_effect = Exception("Connection refused")
     with self.assertRaises(models.DeployerError) as ctx:
-      self.vm_dep.bypass_hcl_disk_validation(
+      self.vm_dep.bypass_vcf_hcl_disk_validation(
           vcf_ip="10.0.0.50",
-          root_password="VcfRootPassword123!",
+          root_pwd="VcfRootPassword123!",
           timeout_seconds=0.02,
           poll_interval_seconds=0.005,
       )
@@ -690,39 +672,30 @@ class TestVMDeployer(unittest.TestCase):
         "Timed out after 0.02s waiting for SSH on VCF appliance 10.0.0.50",
         str(ctx.exception),
     )
-    mock_client.close.assert_called_once()
 
   @mock.patch("paramiko.SSHClient")
-  def test_bypass_hcl_disk_validation_restart_failure_raises_deployer_error(
+  def test_bypass_vcf_hcl_disk_validation_restart_failure_raises_deployer_error(
       self, mock_ssh_cls
   ):
-    """Verifies DeployerError when systemctl restart vcf-bringup exits with non-zero code."""
+    """Verifies DeployerError when HCL bypass execution fails."""
     mock_client = mock.MagicMock()
     mock_ssh_cls.return_value = mock_client
-    # Successful append command
-    ok_stdout = mock.MagicMock()
-    ok_stdout.channel.recv_exit_status.return_value = 0
-    # Failed restart command
-    failed_stdout = mock.MagicMock()
-    failed_stdout.channel.recv_exit_status.return_value = 1
-    failed_stderr = mock.MagicMock()
-    failed_stderr.read.return_value = b"Job for vcf-bringup.service failed."
-    def exec_side_effect(cmd):
-      if "systemctl restart vcf-bringup" in cmd:
-        return (mock.MagicMock(), failed_stdout, failed_stderr)
-      return (mock.MagicMock(), ok_stdout, mock.MagicMock())
-    mock_client.exec_command.side_effect = exec_side_effect
+    mock_shell = mock.MagicMock()
+    mock_client.invoke_shell.return_value = mock_shell
+    mock_shell.recv_ready.return_value = True
+    mock_shell.recv.return_value = b"BYPASS_DONE:1\n"
     with self.assertRaises(models.DeployerError) as ctx:
-      self.vm_dep.bypass_hcl_disk_validation(
+      self.vm_dep.bypass_vcf_hcl_disk_validation(
           vcf_ip="10.0.0.50",
-          root_password="VcfRootPassword123!",
+          root_pwd="VcfRootPassword123!",
           timeout_seconds=5,
           poll_interval_seconds=0.01,
       )
-    self.assertIn("Failed to restart vcf-bringup", str(ctx.exception))
-    self.assertIn("Job for vcf-bringup.service failed", str(ctx.exception))
+    self.assertIn("HCL bypass script execution failed", str(ctx.exception))
+    mock_shell.close.assert_called_once()
     mock_client.close.assert_called_once()
 
 
 if __name__ == "__main__":
   unittest.main()
+

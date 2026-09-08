@@ -278,7 +278,6 @@ FIELD_ORDERS: Dict[str, List[str]] = {
     ],
     "vcf_deployment_config": [
         "target_gce_node",
-        "offline_depot_subnet_name",
         "offline_depot_subnet_cidr",
         "vcf_appliance_root_password_secret",
         "vcf_appliance_local_user_password_secret",

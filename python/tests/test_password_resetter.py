@@ -140,8 +140,8 @@ class TestPasswordResetter(unittest.TestCase):
     self.assertEqual(mock_reset_single.call_count, 2)
     mock_reset_single.assert_has_calls(
         [
-            mock.call("10.0.0.1", "Google1!Google1!", "NewRootP@ss123!"),
-            mock.call("10.0.0.2", "Google1!Google1!", "NewRootP@ss123!"),
+            mock.call("10.0.0.1", "google1!", "NewRootP@ss123!"),
+            mock.call("10.0.0.2", "google1!", "NewRootP@ss123!"),
         ],
         any_order=True,
     )

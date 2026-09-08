@@ -156,6 +156,83 @@ class TestNetworkUtils(unittest.TestCase):
       network_utils.validate_subnet_cidr_size("not-a-cidr")
     self.assertIn("Invalid subnet CIDR format", str(ctx.exception))
 
+  def test_validate_subnet_cidr_not_in_use_success(self):
+    """Verifies that non-overlapping CIDR passes validation."""
+    mock_gcp = mock.MagicMock()
+    existing = [
+        models.SubnetworkInfo(
+            subnetwork_uri="projects/p/regions/r/subnetworks/sub-1",
+            vlan_id=0,
+            network_uri="projects/p/global/networks/vpc",
+            cidr="10.0.0.0/24",
+        )
+    ]
+    network_utils.validate_subnet_cidr_not_in_use(
+        "10.0.100.0/29", existing, mock_gcp
+    )
+    mock_gcp.fetch_subnetwork_cidr.assert_not_called()
+
+  def test_validate_subnet_cidr_not_in_use_overlapping_raises_validation_error(
+      self,
+  ):
+    """Verifies ValidationError when offline depot CIDR overlaps an existing subnet."""
+    mock_gcp = mock.MagicMock()
+    existing = [
+        models.SubnetworkInfo(
+            subnetwork_uri="projects/p/regions/r/subnetworks/mgmt-sub",
+            vlan_id=0,
+            network_uri="projects/p/global/networks/vpc",
+            cidr="10.0.0.0/24",
+        )
+    ]
+    with self.assertRaises(models.ValidationError) as ctx:
+      network_utils.validate_subnet_cidr_not_in_use(
+          "10.0.0.0/29", existing, mock_gcp
+      )
+    self.assertIn(
+        "overlaps with or is already used by existing subnet",
+        str(ctx.exception),
+    )
+    self.assertIn("projects/p/regions/r/subnetworks/mgmt-sub", str(ctx.exception))
+
+  def test_validate_subnet_cidr_not_in_use_fetches_cidr_if_missing(self):
+    """Verifies fetch_subnetwork_cidr is invoked when subnet CIDR is empty."""
+    mock_gcp = mock.MagicMock()
+    mock_gcp.fetch_subnetwork_cidr.return_value = "10.0.0.0/24"
+    existing = [
+        models.SubnetworkInfo(
+            subnetwork_uri="projects/p/regions/r/subnetworks/mgmt-sub",
+            vlan_id=0,
+            network_uri="projects/p/global/networks/vpc",
+        )
+    ]
+    with self.assertRaises(models.ValidationError) as ctx:
+      network_utils.validate_subnet_cidr_not_in_use(
+          "10.0.0.0/29", existing, mock_gcp
+      )
+    mock_gcp.fetch_subnetwork_cidr.assert_called_once_with(
+        "projects/p/regions/r/subnetworks/mgmt-sub"
+    )
+    self.assertIn("overlaps with or is already used by existing subnet", str(ctx.exception))
+
+  def test_validate_subnet_cidr_not_in_use_invalid_cidr_raises_validation_error(
+      self,
+  ):
+    """Verifies ValidationError when target CIDR format is invalid."""
+    mock_gcp = mock.MagicMock()
+    with self.assertRaises(models.ValidationError) as ctx:
+      network_utils.validate_subnet_cidr_not_in_use(
+          "invalid-cidr", [], mock_gcp
+      )
+    self.assertIn("Invalid subnet CIDR format", str(ctx.exception))
+
+  def test_validate_subnet_cidr_not_in_use_empty_cidr_noop(self):
+    """Verifies that empty CIDR returns without performing checks."""
+    mock_gcp = mock.MagicMock()
+    network_utils.validate_subnet_cidr_not_in_use("", [], mock_gcp)
+    mock_gcp.fetch_subnetwork_cidr.assert_not_called()
+
 
 if __name__ == "__main__":
   unittest.main()
+

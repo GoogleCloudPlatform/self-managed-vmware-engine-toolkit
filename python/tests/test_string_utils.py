@@ -138,6 +138,15 @@ class TestStringUtils(unittest.TestCase):
     self.assertEqual(domain, "vcf.internal")
     self.assertEqual(searchpath, "vcf.internal")
 
+  def test_deconstruct_fqdn_with_trailing_dot(self):
+    """Verifies that trailing dot in FQDN is stripped cleanly without raising error."""
+    vm_name, domain, searchpath = string_utils.deconstruct_fqdn(
+        "sddc-manager.vcf.internal."
+    )
+    self.assertEqual(vm_name, "sddc-manager")
+    self.assertEqual(domain, "vcf.internal")
+    self.assertEqual(searchpath, "vcf.internal")
+
   def test_deconstruct_fqdn_invalid_structure(self):
     """Verifies ValidationError on non-FQDN single label strings."""
     with self.assertRaises(models.ValidationError):

@@ -127,8 +127,8 @@ class TestMain(unittest.TestCase):
     finally:
       os.remove(temp_path)
 
-  def test_load_config_with_custom_offline_depot_subnet_name(self):
-    """Verifies loading config with custom optional offline_depot_subnet_name."""
+  def test_load_config_with_trailing_dot_fqdn(self):
+    """Verifies loading config with trailing dot in vcf_installer_fqdn strips dot cleanly."""
     valid_data = {
         "project": "p",
         "zone": "z",
@@ -136,11 +136,10 @@ class TestMain(unittest.TestCase):
         "esxi_root_password_secret": "esxi-root",
         "vcf_deployment_config": {
             "target_gce_node": "esxi-1",
-            "offline_depot_subnet_name": "my-depot-subnet",
             "offline_depot_subnet_cidr": "10.0.100.0/29",
             "vcf_appliance_root_password_secret": "vcf-root",
             "vcf_appliance_local_user_password_secret": "vcf-local",
-            "vcf_installer_fqdn": "sddc-manager.lab.local",
+            "vcf_installer_fqdn": "sddc-manager.lab.local.",
             "vcf_installer_ip_source": {"reserved_address": "vcf-ip"},
             "dns_server": "10.0.0.2",
         },
@@ -153,8 +152,8 @@ class TestMain(unittest.TestCase):
       config = main_mod.load_config(temp_path)
       self.assertIsNotNone(config.vcf_deployment_config)
       self.assertEqual(
-          config.vcf_deployment_config.offline_depot_subnet_name,
-          "my-depot-subnet",
+          config.vcf_deployment_config.vcf_installer_fqdn,
+          "sddc-manager.lab.local",
       )
       self.assertEqual(
           config.vcf_deployment_config.offline_depot_subnet_cidr,
@@ -200,8 +199,8 @@ class TestMain(unittest.TestCase):
       self.assertIsNotNone(config)
       self.assertEqual(config.project, "my-gcp-project")
       self.assertEqual(
-          config.vcf_deployment_config.offline_depot_subnet_name,
-          "offline-depot-subnet-us-central1",
+          config.vcf_deployment_config.offline_depot_subnet_cidr,
+          "10.0.100.0/29",
       )
 
   def test_load_config_with_prefix_dict(self):
@@ -380,6 +379,7 @@ class TestMain(unittest.TestCase):
     vcf_cfg = models.VCFDeploymentConfig(
         target_gce_node="esxi-1",
         vcf_appliance_root_password_secret="vcf-root",
+        vcf_appliance_local_user="vcf",
         vcf_appliance_local_user_password_secret="vcf-local",
         vcf_installer_fqdn="sddc-manager.lab.local",
         vcf_installer_ip_source={"forwarding_rule": "fr-1"},
