@@ -49,7 +49,7 @@ variable "jumpbox_name" {
 
 variable "subnet_name" {
   type        = string
-  description = "The name or self_link of the subnetwork where the VM will be attached."
+  description = "The name or self_link of the subnetwork (in the VPC hosting the ESXi nodes) where the VM will be attached."
 }
 
 variable "service_account_email" {

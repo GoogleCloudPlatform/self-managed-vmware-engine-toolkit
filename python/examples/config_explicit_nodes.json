@@ -1,31 +1,33 @@
 {
   // Target GCP Project ID where bare-metal ESXi instances reside
-  "project": "my-gcp-project",
+  "project": "vmwareengine-bm-autopush-10",
   // Target GCP Compute Engine Zone for ESXi instances
-  "zone": "us-central1-a",
+  "zone": "us-east4-c",
   // Explicit list of bare-metal ESXi GCE instance names
   "gce_nodes": [
-    "esxi-node-0",
-    "esxi-node-1"
+  "vcf-mgmt-sample-node-1",
+  "vcf-mgmt-sample-node-2",
+  "vcf-mgmt-sample-node-3",
+  "vcf-mgmt-sample-node-4"
   ],
   // Secret Manager secret containing the ESXi root password
-  "esxi_root_password_secret": "esxi-root-password-secret",
+  "esxi_root_password_secret": "esxi-root-password",
   // VCF deployment and initialization parameters
   "vcf_deployment_config": {
     // Target bare-metal node hosting the initial deployment workloads
-    "target_gce_node": "esxi-node-0",
+    "target_gce_node": "vcf-mgmt-sample-node-1",
     // IPv4 CIDR range for dedicated offline depot subnetwork (e.g. /29). Must not overlap with or reuse any existing subnets in the VPC
-    "offline_depot_subnet_cidr": "10.0.100.0/29",
+    "offline_depot_subnet_cidr": "10.2.100.0/29",
     // Secret Manager secret containing the VCF appliance root password
-    "vcf_appliance_root_password_secret": "vcf-appliance-root-password-secret",
+    "vcf_appliance_root_password_secret": "vcf-root-password",
     // Secret Manager secret containing the VCF appliance local user password
-    "vcf_appliance_local_user_password_secret": "vcf-appliance-local-password-secret",
+    "vcf_appliance_local_user_password_secret": "vcf-localuser-password",
     // Source identifier for the VCF Installer (SDDC Manager) IP address
     "vcf_installer_ip_source": {
-      "reserved_address": "vcf-installer-ip-address"
+      "forwarding_rule": "vcf-mgmt-sddcm-fr"
     },
     // Fully qualified domain name for SDDC Manager / VCF Installer
-    "vcf_installer_fqdn": "vcf-installer.example.internal",
+    "vcf_installer_fqdn": "sddcm.gcve-vcf.test.gve",
     // DNS server IP.  If gcp_subnet was created during Cloud DNS configuration from E2E TF, use the DNS reserved IP from that subnet. Otherwise, supply a custom DNS server IP. Defaults to GCP metadata server (169.254.169.254) if omitted.
     "dns_server": "10.0.100.2"
   }

@@ -32,12 +32,12 @@ resource "google_compute_subnetwork" "created_subnet" {
   project                  = var.project_id
   private_ip_google_access = true
 
-  description = "Subnet created for SMVE Toolkit Jumpbox VM"
+  description = "Subnet created for SMVE Toolkit Jumpbox VM in the VPC hosting the ESXi nodes"
 
   lifecycle {
     precondition {
       condition     = var.vpc_name != ""
-      error_message = "'vpc_name' must be provided when 'create_subnet' is set to true."
+      error_message = "'vpc_name' (must be the VPC hosting the ESXi nodes) must be provided when 'create_subnet' is set to true."
     }
     precondition {
       condition     = try(can(cidrnetmask(var.subnet_cidr)) && tonumber(split("/", var.subnet_cidr)[1]) <= 29, false)
@@ -60,7 +60,7 @@ data "google_compute_subnetwork" "existing_subnet" {
   lifecycle {
     postcondition {
       condition     = var.vpc_name == "" || element(reverse(split("/", self.network)), 0) == var.vpc_name
-      error_message = "VPC network mismatch: Subnet '${var.subnet_name}' belongs to VPC network '${element(reverse(split("/", self.network)), 0)}', but 'vpc_name' was configured as '${var.vpc_name}'. Either update 'vpc_name' to match or leave it empty (\"\") to auto-detect the VPC from the subnet."
+      error_message = "VPC network mismatch: Subnet '${var.subnet_name}' belongs to VPC network '${element(reverse(split("/", self.network)), 0)}', but 'vpc_name' was configured as '${var.vpc_name}'. Either update 'vpc_name' to match the VPC hosting the ESXi nodes or leave it empty (\"\") to auto-detect the VPC from the subnet."
     }
   }
 }
@@ -119,7 +119,7 @@ resource "google_compute_router" "nat_router" {
   region  = var.region
   project = var.project_id
 
-  description = "Cloud Router for SMVE Toolkit Jumpbox NAT gateway"
+  description = "Cloud Router for SMVE Toolkit Jumpbox NAT gateway in the ESXi VPC"
 }
 
 # ------------------------------------------------------------------------------
@@ -155,5 +155,5 @@ resource "google_compute_route" "default_internet_route" {
   priority         = 1000
   project          = var.project_id
 
-  description = "Default route to default-internet-gateway for SMVE Toolkit Jumpbox Cloud NAT internet egress"
+  description = "Default route to default-internet-gateway for SMVE Toolkit Jumpbox Cloud NAT internet egress in the ESXi VPC"
 }
