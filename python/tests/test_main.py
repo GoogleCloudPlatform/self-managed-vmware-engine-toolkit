@@ -197,10 +197,10 @@ class TestMain(unittest.TestCase):
       fpath = os.path.join(examples_dir, fname)
       config = main_mod.load_config(fpath)
       self.assertIsNotNone(config)
-      self.assertEqual(config.project, "my-gcp-project")
+      self.assertEqual(config.project, "vmwareengine-bm-autopush-10")
       self.assertEqual(
           config.vcf_deployment_config.offline_depot_subnet_cidr,
-          "10.0.100.0/29",
+          "10.2.100.0/29",
       )
 
   def test_load_config_with_prefix_dict(self):

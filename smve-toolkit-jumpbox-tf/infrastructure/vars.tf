@@ -62,7 +62,7 @@ variable "subnet_name" {
   default     = "smve-toolkit-subnet"
   description = <<EOT
 Meaning: The name of the GCP Subnetwork used for the jumpbox.
-Pre-req: If `create_subnet` is set to false, this subnetwork must already exist in the specified `vpc_name` and `region`, with connectivity to target ESXi host(s) and available IP capacity for 1 GCE instance.
+Pre-req: If `create_subnet` is set to false, this subnetwork must already exist in the specified `vpc_name` (the VPC hosting the ESXi nodes) and `region`, with connectivity to target ESXi host(s) and available IP capacity for 1 GCE instance.
 Possible value: RFC1035 compliant GCP resource name string, e.g., "smve-toolkit-subnet" or "custom-jumpbox-subnet".
 Required or Not: Optional (defaults to "smve-toolkit-subnet").
 EOT
@@ -81,7 +81,7 @@ variable "create_subnet" {
   default     = true
   description = <<EOT
 Meaning: Flag determining whether Terraform should create a new subnetwork (`true`) or look up an existing subnetwork (`false`).
-Pre-req: If set to `true`, `vpc_name` and `subnet_cidr` must be supplied. If set to `false`, an existing subnet matching `subnet_name` in `region` must exist.
+Pre-req: If set to `true`, `vpc_name` (the VPC hosting the ESXi nodes) and `subnet_cidr` must be supplied. If set to `false`, an existing subnet matching `subnet_name` in `region` must exist in the VPC hosting the ESXi nodes.
 Possible value: `true` or `false`.
 Required or Not: Optional (defaults to `true`).
 EOT
@@ -94,8 +94,8 @@ variable "vpc_name" {
   type        = string
   default     = ""
   description = <<EOT
-Meaning: The name of the VPC network where the subnet exists or will be created. The VPC must have network connectivity to the target ESXi host(s) (e.g. via VPC Peering, Cloud VPN, Direct Interconnect, or being the ESXi VPC itself).
-Pre-req: The VPC network must exist in the target GCP project.
+Meaning: The name of the VPC network where the jumpbox subnet exists or will be created. The input vpc_name must be the same VPC network hosting the ESXi nodes.
+Pre-req: The VPC network must exist in the target GCP project and be the VPC hosting the ESXi nodes.
 Possible value: VPC network name string, e.g., "custom-vpc-network" or "default".
 Required or Not: Required if `create_subnet = true`; Optional if an existing subnet is supplied (`create_subnet = false`).
 EOT
@@ -108,8 +108,8 @@ variable "subnet_cidr" {
   type        = string
   default     = ""
   description = <<EOT
-Meaning: The IPv4 CIDR block for the subnet to be created. Minimum mask size is /29 (e.g., 8 IP addresses).
-Pre-req: Must be an unallocated, valid primary CIDR range within the host VPC network space. Minimum mask size must be /29 or larger (e.g., /28, /24).
+Meaning: The IPv4 CIDR block for the subnet to be created in the VPC hosting the ESXi nodes. Minimum mask size is /29 (e.g., 8 IP addresses).
+Pre-req: Must be an unallocated, valid primary CIDR range within the host VPC network space (the VPC hosting the ESXi nodes). Minimum mask size must be /29 or larger (e.g., /28, /24).
 Possible value: Standard IPv4 CIDR string, e.g., "10.10.10.0/28" or "172.16.0.0/24".
 Required or Not: Required if `create_subnet = true`; Not required if using an existing subnet (`create_subnet = false`).
 EOT

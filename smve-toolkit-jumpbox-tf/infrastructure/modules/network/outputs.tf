@@ -23,7 +23,7 @@ output "subnet_name" {
 }
 
 output "vpc_network_name" {
-  description = "The name of the VPC network containing the subnet."
+  description = "The name of the VPC network (hosting the ESXi nodes) containing the subnet."
   value       = local.vpc_network_name
 }
 

@@ -39,13 +39,13 @@ variable "region" {
 
 variable "vpc_name" {
   type        = string
-  description = "The VPC network name in which the subnet exists or will be created."
+  description = "The VPC network name in which the subnet exists or will be created. Must be the same VPC hosting the ESXi nodes."
 }
 
 variable "subnet_name" {
   type        = string
   default     = "smve-toolkit-jumpbox-subnet"
-  description = "The name of the subnet to create or fetch."
+  description = "The name of the subnet to create or fetch in the VPC hosting the ESXi nodes."
 
   validation {
     condition     = can(regex("^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$", var.subnet_name))
@@ -56,7 +56,7 @@ variable "subnet_name" {
 variable "create_subnet" {
   type        = bool
   default     = true
-  description = "Whether to create a new subnet (true) or fetch an existing one (false)."
+  description = "Whether to create a new subnet (true) or fetch an existing one (false) in the VPC hosting the ESXi nodes."
 }
 
 variable "subnet_cidr" {

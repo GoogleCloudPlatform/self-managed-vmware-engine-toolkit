@@ -38,7 +38,7 @@ output "service_account_email" {
 }
 
 output "subnet_name" {
-  description = "The name of the subnet used by the jumpbox."
+  description = "The name of the subnet used by the jumpbox in the VPC hosting the ESXi nodes."
   value       = module.network.subnet_name
 }
 

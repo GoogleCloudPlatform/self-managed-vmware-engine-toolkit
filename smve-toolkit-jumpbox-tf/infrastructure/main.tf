@@ -15,8 +15,8 @@
 # ==============================================================================
 # File: infrastructure/main.tf
 # Description: Main entry point for SMVE Toolkit Jumpbox Terraform module.
-#              Orchestrates network/subnet creation, IAP firewall rules,
-#              Cloud Router, Cloud NAT, and jumpbox GCE instance deployment.
+#              Orchestrates network/subnet creation in the VPC hosting the ESXi nodes,
+#              IAP firewall rules, Cloud Router, Cloud NAT, and jumpbox GCE instance deployment.
 # ==============================================================================
 
 # Configure the Google Cloud Provider with the specified project and region.
@@ -49,8 +49,8 @@ locals {
 # ------------------------------------------------------------------------------
 # Module 1: Network & Firewall Setup
 # Manages conditional subnetwork provisioning (creation or fetching existing)
-# and creates the requisite ingress firewall rule allowing IAP SSH access
-# scoped specifically to the Jumpbox service account.
+# in the VPC hosting the ESXi nodes and creates the requisite ingress firewall rule
+# allowing IAP SSH access scoped specifically to the Jumpbox service account.
 # It also enables internet access via NAT by creating a Cloud NAT and a Cloud Router.
 # ------------------------------------------------------------------------------
 module "network" {
