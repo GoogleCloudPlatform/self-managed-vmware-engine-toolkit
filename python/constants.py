@@ -123,6 +123,22 @@ class GCPClientDefaults:
   RETRYABLE_HTTP_CODES: Tuple[int, ...] = (429, 500, 502, 503, 504)
 
 
+class DriftManagerDefaults:
+  """Defaults and IAM configuration for GCVE Drift Manager Service Agent."""
+
+  DEFAULT_P4SA_DOMAIN = "gcp-sa-network-drift.iam.gserviceaccount.com"
+  P4SA_DOMAINS: Dict[str, str] = {
+      "prod": "gcp-sa-network-drift.iam.gserviceaccount.com",
+      "staging": "gcp-sa-staging-network-drift.iam.gserviceaccount.com",
+      "autopush": "gcp-sa-autopush-network-drift.iam.gserviceaccount.com",
+  }
+  P4SA_EMAIL_TEMPLATE = "service-{project_number}@{domain}"
+  P4SA_ROLE = "roles/compute.networkAdmin"
+  CRM_API_BASE_URL = "https://cloudresourcemanager.googleapis.com/v1"
+  IAM_RETRY_ATTEMPTS = 3
+  IAM_RETRY_BASE_DELAY = 0.5
+
+
 class ValidationRules:
   """Validation rules, password complexity thresholds, tags, and depot constants."""
 
