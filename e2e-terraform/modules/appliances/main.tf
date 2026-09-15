@@ -180,7 +180,7 @@ module "nsx_ip_allocator" {
 resource "google_compute_region_backend_service" "mgmt_backends" {
   for_each                        = toset(local.mgmt_appliances)
   project                         = var.project_id
-  name                            = "${var.resource_name_prefix}-${each.key}-backend"
+  name                            = "${var.resource_name_prefix}-${each.key}-lb"
   region                          = var.region
   protocol                        = "UNSPECIFIED"
   load_balancing_scheme           = "INTERNAL"
@@ -225,7 +225,7 @@ resource "google_compute_forwarding_rule" "mgmt_forwarding_rules" {
 resource "google_compute_region_backend_service" "nsx_backends" {
   for_each                        = toset(local.nsx_appliances)
   project                         = var.project_id
-  name                            = "${var.resource_name_prefix}-${each.key}-backend"
+  name                            = "${var.resource_name_prefix}-${each.key}-lb"
   region                          = var.region
   protocol                        = "UNSPECIFIED"
   load_balancing_scheme           = "INTERNAL"
