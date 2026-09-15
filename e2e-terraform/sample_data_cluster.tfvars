@@ -41,7 +41,7 @@
 # Description: Target GCP Project ID where all infrastructure resources will be provisioned.
 # Valid Values: Valid GCP project ID string (e.g., "my-gcp-project-id").
 # Default Value: null (Required)
-project_id = "vmwareengine-bm-autopush-10"
+project_id = "<YOUR_PROJECT_ID>"
 
 # Description: Target GCP Region for infrastructure provisioning (e.g., VPC, subnets, load balancers, placement policy).
 # Valid Values: Valid GCP region name string (e.g., "us-east4", "us-central1").
