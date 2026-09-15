@@ -264,7 +264,41 @@ class TestConstants(unittest.TestCase):
         "autopush", constants.OfflineDepotDefaults.SERVICE_ATTACHMENT_TEMPLATES
     )
 
+  def test_drift_manager_defaults(self):
+    """Verifies DriftManagerDefaults constants and templates."""
+    self.assertEqual(
+        constants.DriftManagerDefaults.DEFAULT_P4SA_DOMAIN,
+        "gcp-sa-network-drift.iam.gserviceaccount.com",
+    )
+    self.assertEqual(
+        constants.DriftManagerDefaults.P4SA_DOMAINS["prod"],
+        "gcp-sa-network-drift.iam.gserviceaccount.com",
+    )
+    self.assertEqual(
+        constants.DriftManagerDefaults.P4SA_DOMAINS["staging"],
+        "gcp-sa-staging-network-drift.iam.gserviceaccount.com",
+    )
+    self.assertEqual(
+        constants.DriftManagerDefaults.P4SA_DOMAINS["autopush"],
+        "gcp-sa-autopush-network-drift.iam.gserviceaccount.com",
+    )
+    self.assertEqual(
+        constants.DriftManagerDefaults.P4SA_ROLE,
+        "roles/compute.networkAdmin",
+    )
+    self.assertEqual(
+        constants.DriftManagerDefaults.P4SA_EMAIL_TEMPLATE,
+        "service-{project_number}@{domain}",
+    )
+    self.assertIn(
+        "cloudresourcemanager.googleapis.com",
+        constants.DriftManagerDefaults.CRM_API_BASE_URL,
+    )
+    self.assertEqual(constants.DriftManagerDefaults.IAM_RETRY_ATTEMPTS, 3)
+    self.assertEqual(constants.DriftManagerDefaults.IAM_RETRY_BASE_DELAY, 0.5)
+
 
 if __name__ == "__main__":
   unittest.main()
+
 

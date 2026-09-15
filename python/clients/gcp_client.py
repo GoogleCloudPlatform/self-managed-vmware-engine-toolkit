@@ -8,7 +8,8 @@ telemetry cleanly without embedding service-specific domain processing.
 import ipaddress
 import logging
 import os
-from typing import Any, List, Optional, Tuple
+import time
+from typing import Any, Callable, List, Optional, Tuple
 
 try:
   from google.api_core import exceptions as gcp_exceptions
@@ -234,6 +235,60 @@ class GCPClient:
     raise models.RetryableError(
         f"Unexpected operational fault during {operation} on '{target}': {exc}"
     ) from exc
+
+  def _execute_with_retry(
+      self,
+      operation: Callable[[], Any],
+      max_attempts: int,
+      base_delay: float,
+      max_delay: float = constants.RetryDefaults.MAX_DELAY,
+      operation_name: str = "Operation",
+  ) -> Any:
+    """Executes a callable with exponential backoff retries for transient faults.
+
+    Args:
+        operation: Zero-argument callable to execute.
+        max_attempts: Maximum number of attempts before failing.
+        base_delay: Initial retry backoff multiplier in seconds.
+        max_delay: Maximum sleep duration per retry iteration in seconds.
+        operation_name: Human-readable identifier for logging.
+
+    Returns:
+        The return value of the operation callable upon success.
+
+    Raises:
+        models.ValidationError: Immediately on validation or permission failures.
+        models.NonRetryableError: Immediately on fatal unrecoverable errors.
+        models.RetryableError: When max attempts are exhausted on transient errors.
+    """
+    for attempt in range(max_attempts):
+      try:
+        return operation()
+      except (models.ValidationError, models.NonRetryableError):
+        raise
+      except Exception as exc:
+        if attempt == max_attempts - 1:
+          logger.critical(
+              "Exhausted all %d attempts for %s. Final exception: %s",
+              max_attempts,
+              operation_name,
+              exc,
+          )
+          if isinstance(exc, models.RetryableError):
+            raise
+          raise models.RetryableError(
+              f"Exhausted max attempts ({max_attempts}) for {operation_name}: {exc}"
+          ) from exc
+        delay = min(max_delay, base_delay * (2**attempt))
+        logger.warning(
+            "Transient failure in %s on attempt %d/%d: %s. Retrying in %.2fs...",
+            operation_name,
+            attempt + 1,
+            max_attempts,
+            exc,
+            delay,
+        )
+        time.sleep(delay)
 
   def _parse_instance_resource(self, resource_str: str) -> Tuple[str, str, str]:
     """Extracts project, zone, and instance name from resource URI string."""
@@ -1280,4 +1335,234 @@ class GCPClient:
         raise
       self._handle_gcp_exception("DNS Record Update", clean_a_record_fqdn, exc)
       raise
+
+  def get_project_number(self, project_id: str) -> str:
+    """Resolves the numeric project number for a given GCP project ID.
+
+    Queries the Cloud Resource Manager REST API using existing application
+    credentials.
+
+    Args:
+        project_id: Alphanumeric GCP project ID (e.g. 'my-smve-project').
+
+    Returns:
+        String representation of the numeric project number (e.g. '123456789012').
+
+    Raises:
+        models.ValidationError: If project_id is invalid or cannot be found.
+        models.NonRetryableError: On authentication, authorization, or network failures.
+    """
+    if not project_id or not isinstance(project_id, str):
+      raise models.ValidationError(
+          f"Invalid project_id '{project_id}': must be a non-empty string."
+      )
+
+    try:
+      import google.auth  # pylint: disable=g-import-not-at-top
+      from google.auth.transport.requests import AuthorizedSession  # pylint: disable=g-import-not-at-top
+      credentials, _ = google.auth.default()
+      session = AuthorizedSession(credentials)
+    except Exception as auth_exc:
+      raise models.NonRetryableError(
+          f"Failed to obtain authenticated session for Cloud Resource Manager API: {auth_exc}"
+      ) from auth_exc
+
+    try:
+      url = f"{constants.DriftManagerDefaults.CRM_API_BASE_URL}/projects/{project_id}"
+      resp = session.get(url)
+      if resp.status_code == 404:
+        raise models.ValidationError(f"Project '{project_id}' does not exist.")
+      if resp.status_code in (401, 403):
+        raise models.NonRetryableError(
+            f"Permission denied querying project metadata for '{project_id}'"
+            f" [HTTP {resp.status_code}]: {resp.text}"
+        )
+      if not resp.ok:
+        raise models.NonRetryableError(
+            f"Failed to fetch project metadata for '{project_id}'"
+            f" [HTTP {resp.status_code}]: {resp.text}"
+        )
+
+      data = resp.json()
+      project_number = str(data.get("projectNumber", "")).strip()
+      if not project_number or not project_number.isdigit():
+        raise models.ValidationError(
+            f"Project metadata response for '{project_id}' did not contain a valid numeric 'projectNumber'."
+        )
+      logger.debug(
+          "Resolved project number '%s' for project '%s' via CRM API.",
+          project_number,
+          project_id,
+      )
+      return project_number
+    except (models.ValidationError, models.NonRetryableError):
+      raise
+    except Exception as exc:
+      self._handle_gcp_exception("Get Project Number", project_id, exc)
+      raise
+
+  def grant_project_iam_role(
+      self, project_id: str, member: str, role_name: str
+  ) -> bool:
+    """Idempotently ensures an IAM role binding exists on the customer project.
+
+    Inspects the project IAM policy. If the member is already bound to the
+    target role, no write operation is performed. If missing, appends the
+    member with optimistic concurrency control (etag matching).
+
+    Args:
+        project_id: GCP project ID.
+        member: Member URI (e.g. 'serviceAccount:service-123@...').
+        role_name: Standard predefined role (e.g. 'roles/compute.networkAdmin').
+
+    Returns:
+        True if the policy was modified, False if the grant was already present.
+
+    Raises:
+        models.ValidationError: On permission denial or invalid inputs.
+        models.NonRetryableError: On unrecoverable API errors.
+    """
+    if not project_id:
+      raise models.ValidationError("project_id must be specified.")
+    if not member:
+      raise models.ValidationError("member must be specified.")
+    if not role_name:
+      raise models.ValidationError("role_name must be specified.")
+
+    try:
+      import google.auth  # pylint: disable=g-import-not-at-top
+      from google.auth.transport.requests import AuthorizedSession  # pylint: disable=g-import-not-at-top
+      credentials, _ = google.auth.default()
+      session = AuthorizedSession(credentials)
+    except Exception as auth_exc:
+      raise models.NonRetryableError(
+          f"Failed to obtain authenticated session for Cloud Resource Manager API: {auth_exc}"
+      ) from auth_exc
+
+    base_url = f"{constants.DriftManagerDefaults.CRM_API_BASE_URL}/projects/{project_id}"
+
+    def _attempt_grant() -> bool:
+      # 1. Fetch current policy
+      get_resp = session.post(f"{base_url}:getIamPolicy")
+      if not get_resp.ok:
+        if get_resp.status_code == 403:
+          raise models.ValidationError(
+              f"Permission denied reading IAM policy on project '{project_id}'."
+              " Ensure the jumpbox runner identity has 'roles/resourcemanager.projectIamAdmin'."
+          )
+        if get_resp.status_code == 404:
+          raise models.ValidationError(
+              f"Project '{project_id}' not found when retrieving IAM policy."
+          )
+        raise models.RetryableError(
+            f"Failed to get IAM policy for '{project_id}' [HTTP {get_resp.status_code}]: {get_resp.text}"
+        )
+
+      policy = get_resp.json()
+      bindings = policy.get("bindings", [])
+
+      # 2. Check if target role already contains target member
+      target_binding = None
+      for b in bindings:
+        if b.get("role") == role_name:
+          target_binding = b
+          if member in b.get("members", []):
+            logger.info(
+                "IAM role '%s' is already granted to '%s' on project '%s'.",
+                role_name,
+                member,
+                project_id,
+            )
+            return False
+          break
+
+      # 3. Add member to existing binding or create a new binding block
+      if target_binding is not None:
+        target_binding.setdefault("members", []).append(member)
+      else:
+        bindings.append({"role": role_name, "members": [member]})
+      policy["bindings"] = bindings
+
+      # 4. Save policy with optimistic concurrency check (etag)
+      set_resp = session.post(
+          f"{base_url}:setIamPolicy",
+          json={"policy": policy},
+      )
+      if set_resp.ok:
+        logger.info(
+            "Successfully granted IAM role '%s' to '%s' on project '%s'.",
+            role_name,
+            member,
+            project_id,
+        )
+        return True
+
+      if set_resp.status_code == 403:
+        raise models.ValidationError(
+            f"Permission denied updating IAM policy on project '{project_id}'."
+            " Ensure the jumpbox runner identity has 'roles/resourcemanager.projectIamAdmin'."
+        )
+
+      if set_resp.status_code == 409:
+        raise models.RetryableError(
+            f"Concurrent modification conflict on project '{project_id}' IAM policy."
+        )
+
+      raise models.NonRetryableError(
+          f"Failed to set IAM policy on project '{project_id}'"
+          f" [HTTP {set_resp.status_code}]: {set_resp.text}"
+      )
+
+    return self._execute_with_retry(
+        operation=_attempt_grant,
+        max_attempts=constants.DriftManagerDefaults.IAM_RETRY_ATTEMPTS,
+        base_delay=constants.DriftManagerDefaults.IAM_RETRY_BASE_DELAY,
+        operation_name=f"Grant IAM Role '{role_name}' on '{project_id}'",
+    )
+
+  def ensure_drift_manager_p4sa_iam(self, project_id: str) -> str:
+    """Ensures GCVE Drift Manager Service Agent (P4SA) has required IAM role on project.
+
+    Resolves the customer project number, computes the P4SA email address,
+    and idempotently binds the predefined role (roles/compute.networkAdmin).
+
+    Args:
+        project_id: GCP project ID.
+
+    Returns:
+        The formatted P4SA email address.
+
+    Raises:
+        models.ValidationError: If project is invalid or permission is denied.
+        models.NonRetryableError: On fatal API errors.
+    """
+    logger.info(
+        "Bootstrapping GCVE Drift Manager Service Agent permissions for project '%s'...",
+        project_id,
+    )
+    project_number = self.get_project_number(project_id)
+    env = string_utils.get_active_env()
+    sa_domain = constants.DriftManagerDefaults.P4SA_DOMAINS.get(
+        env, constants.DriftManagerDefaults.DEFAULT_P4SA_DOMAIN
+    )
+    p4sa_email = constants.DriftManagerDefaults.P4SA_EMAIL_TEMPLATE.format(
+        project_number=project_number,
+        domain=sa_domain,
+    )
+    p4sa_member = f"serviceAccount:{p4sa_email}"
+    role_name = constants.DriftManagerDefaults.P4SA_ROLE
+
+    self.grant_project_iam_role(
+        project_id=project_id,
+        member=p4sa_member,
+        role_name=role_name,
+    )
+    logger.info(
+        "Drift Manager Service Agent '%s' verified with role '%s' on project '%s'.",
+        p4sa_email,
+        role_name,
+        project_id,
+    )
+    return p4sa_email
+
 

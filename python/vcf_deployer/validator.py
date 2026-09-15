@@ -160,6 +160,9 @@ class PreDeploymentValidator:
             " address."
         ) from exc
 
+    # 10. Authorize GCVE Drift Manager Service Agent for real-time drift reconciliation
+    p4sa_email = self.gcp.ensure_drift_manager_p4sa_iam(self.config.project)
+
     logger.info(
         "Phase 1 validation completed successfully (VLAN: %d, CIDR: %s).",
         vlan_id,
@@ -183,6 +186,7 @@ class PreDeploymentValidator:
         vcf_appliance_local_password=vcf_local,
         vcf_appliance_local_user=vcf_appliance_local_user,
         dns_server=vcf_cfg.dns_server,
+        drift_manager_p4sa_email=p4sa_email,
     )
 
   def _inspect_single_node(
