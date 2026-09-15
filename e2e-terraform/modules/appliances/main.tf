@@ -257,7 +257,7 @@ resource "google_compute_forwarding_rule" "nsx_forwarding_rules" {
   backend_service       = google_compute_region_backend_service.nsx_backends[each.key].self_link
   subnetwork            = var.nsx_tep_subnet_name
   network               = var.vpc_network
-  ip_protocol           = "L3_DEFAULT"
+  ip_protocol           = can(regex("nsx-edge-vip|nsx-uplink-vip", each.key)) ? "TCP" : "L3_DEFAULT"
   all_ports             = true
   allow_global_access   = true
   ip_address            = module.nsx_ip_allocator.effective_ip_map[each.key]
