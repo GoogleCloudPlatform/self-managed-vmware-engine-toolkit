@@ -18,7 +18,7 @@
 # ==============================================================================
 
 # Required Parameters
-project_id = "vmwareengine-bm-autopush-10"
+project_id = "YOUR_PROJECT_ID"
 region     = "us-east4"
 
 
