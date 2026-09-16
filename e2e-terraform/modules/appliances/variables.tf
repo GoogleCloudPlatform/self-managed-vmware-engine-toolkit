@@ -29,7 +29,7 @@ variable "zone" {
 
 variable "resource_name_prefix" {
   type        = string
-  default     = "myvcf"
+  default     = "my-vcf"
   description = "Global prefix prepended to all generated resource names."
 }
 
@@ -99,7 +99,7 @@ variable "mgmt_ip_address_type" {
 variable "mgmt_ip_values" {
   type        = map(string)
   default     = {}
-  description = "Map of management appliance names to IP values in mgmt_subnet_cidr. Supported input value formats per entry: 1) Single explicit IPv4 address (e.g. '10.200.0.9'), 2) IPv4 address range string 'start_ip-end_ip' (e.g. '10.200.0.50-10.200.0.80') which expands into sequential entries (<name>-1, <name>-2, ...), 3) Positive integer count string (e.g. '6') which allocates N automatic IPs (<name>-1, ..., <name>-N) for automatic modes, or 4) Empty string '' for single automatic IP allocation."
+  description = "Map of management appliance names to IP values in mgmt_subnet_cidr. Supported input value formats per entry: 1) Single explicit IPv4 address (e.g. '10.200.0.9'), 2) IPv4 address range string 'start_ip-end_ip' (e.g. '10.200.0.50-10.200.0.80') which expands into sequential entries (<name>01, <name>02, ...), 3) Positive integer count string (e.g. '6') which allocates N automatic IPs (<name>01, ..., <name>N) for automatic modes, or 4) Empty string '' for single automatic IP allocation."
   validation {
     condition = alltrue([
       for k, v in var.mgmt_ip_values : v == "" || can(regex("^[1-9][0-9]*$", v)) || can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", v)) || can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}-(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", v))
@@ -125,7 +125,7 @@ variable "nsx_ip_address_type" {
 variable "nsx_ip_values" {
   type        = map(string)
   default     = {}
-  description = "Map of NSX datapath appliance names to IP values in nsx_tep_subnet_cidr. Supported input value formats per entry: 1) Single explicit IPv4 address (e.g. '10.200.3.10'), 2) IPv4 address range string 'start_ip-end_ip' (e.g. '10.200.3.50-10.200.3.60') which expands into sequential entries (<name>-1, <name>-2, ...), 3) Positive integer count string (e.g. '2') which allocates N automatic IPs (<name>-1, ..., <name>-N) for automatic modes, or 4) Empty string '' for single automatic IP allocation."
+  description = "Map of NSX datapath appliance names to IP values in nsx_tep_subnet_cidr. Supported input value formats per entry: 1) Single explicit IPv4 address (e.g. '10.200.3.10'), 2) IPv4 address range string 'start_ip-end_ip' (e.g. '10.200.3.50-10.200.3.60') which expands into sequential entries (<name>01, <name>02, ...), 3) Positive integer count string (e.g. '2') which allocates N automatic IPs (<name>01, ..., <name>N) for automatic modes, or 4) Empty string '' for single automatic IP allocation."
   validation {
     condition = alltrue([
       for k, v in var.nsx_ip_values : v == "" || can(regex("^[1-9][0-9]*$", v)) || can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", v)) || can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}-(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", v))

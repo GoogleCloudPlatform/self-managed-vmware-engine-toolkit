@@ -48,10 +48,10 @@ locals {
   expanded_appliances = {
     for group, ip_map in { mgmt = var.mgmt_ip_values, nsx = var.nsx_ip_values } : group => flatten([
       for name, val in ip_map : (
-        # Case A: IPv4 Range (e.g., "10.200.0.50-10.200.0.80") -> <name>-1, <name>-2, ...
+        # Case A: IPv4 Range (e.g., "10.200.0.50-10.200.0.80") -> <name>01, <name>02, ...
         can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}-(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", val)) ? [
           for i in range(local.range_entries_metadata[name].end_int - local.range_entries_metadata[name].start_int + 1) : {
-            name = (local.range_entries_metadata[name].end_int - local.range_entries_metadata[name].start_int + 1) == 1 ? name : "${name}-${i + 1}"
+            name = (local.range_entries_metadata[name].end_int - local.range_entries_metadata[name].start_int + 1) == 1 ? name : format("%s%02d", replace(name, "/0?1$/", ""), i + 1)
             ip = format(
               "%d.%d.%d.%d",
               floor((local.range_entries_metadata[name].start_int + i) / 16777216) % 256,
@@ -61,10 +61,10 @@ locals {
             )
           }
           ] : (
-          # Case B: Positive Integer Count (e.g., "6") -> <name>-1..6 with automatic IP allocation
+          # Case B: Positive Integer Count (e.g., "6") -> <name>01..06 with automatic IP allocation
           can(regex("^[1-9][0-9]*$", val)) ? [
             for i in range(parseint(val, 10)) : {
-              name = parseint(val, 10) == 1 ? name : "${name}-${i + 1}"
+              name = parseint(val, 10) == 1 ? name : format("%s%02d", replace(name, "/0?1$/", ""), i + 1)
               ip   = ""
             }
             ] : [

@@ -33,7 +33,7 @@ variable "subnetwork" {
 
 variable "resource_name_prefix" {
   type        = string
-  default     = "myvcf"
+  default     = "my-vcf"
   description = "Prefix for naming reserved IP address resources"
 }
 
