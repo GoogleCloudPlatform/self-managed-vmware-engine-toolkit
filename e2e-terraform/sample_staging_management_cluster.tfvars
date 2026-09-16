@@ -42,7 +42,7 @@
 # Description: Target GCP Project ID where all infrastructure resources will be provisioned.
 # Valid Values: Valid GCP project ID string (e.g., "my-gcp-project-id").
 # Default Value: null (Required)
-project_id = "v5e2bab89bdeab8d0-tp"
+project_id = "<YOUR_PROJECT_ID>"
 
 # Description: Target GCP Region for infrastructure provisioning (e.g., VPC, subnets, load balancers, placement policy).
 # Valid Values: Valid GCP region name string (e.g., "us-central1", "us-east4").
@@ -262,7 +262,7 @@ machine_type = "z3-highmem-192-metal"
 # Description: Full resource URI of the ESXi OS boot disk image for bare-metal host instances.
 # Valid Values: Valid full ESXi image URI matching projects/<project>/global/images/<image-name>.
 # Default Value: None (Required)
-esxi_image = "projects/gcve-bcom-vvol-project/global/images/vmware-esxi-9-1-0-v20260730" # TODO(tulippandey) Change this once public qualified images are available
+esxi_image = "projects/<YOUR_IMAGE_PROJECT_ID>/global/images/vmware-esxi-9-1-0-v20260730" # TODO(tulippandey) Change this once public qualified images are available
 
 # Description: Domain name appended to node_names to compute host FQDNs and used as the forward DNS zone domain.
 # Valid Values: Non-empty domain string (e.g., "gcve-vcf.test.gve.", "vcf.corp.local.").

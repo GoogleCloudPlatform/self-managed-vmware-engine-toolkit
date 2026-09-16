@@ -1,6 +1,6 @@
 {
   // Target GCP Project ID where bare-metal ESXi instances reside
-  "project": "vmwareengine-bm-autopush-10",
+  "project": "<YOUR_PROJECT_ID>",
   // Target GCP Compute Engine Zone for ESXi instances
   "zone": "us-east4-c",
   // Explicit list of bare-metal ESXi GCE instance names

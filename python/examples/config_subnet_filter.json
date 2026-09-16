@@ -1,6 +1,6 @@
 {
   // Target GCP Project ID where bare-metal ESXi instances reside
-  "project": "vmwareengine-bm-autopush-10",
+  "project": "<YOUR_PROJECT_ID>",
   // Target GCP Compute Engine Zone for ESXi instances
   "zone": "us-east4-c",
   // Discover ESXi instances attached to a specific primary management subnet
@@ -20,7 +20,7 @@
     // Secret Manager secret containing the VCF appliance local user password
     "vcf_appliance_local_user_password_secret": "vcf-localuser-password",
     // Direct resource URI for the VCF Installer (SDDC Manager) forwarding rule
-    "vcf_installer_ip_source": "projects/vmwareengine-bm-autopush-10/regions/us-east4/forwardingRules/vcf-mgmt-sddcm-fr",
+    "vcf_installer_ip_source": "projects/<YOUR_PROJECT_ID>/regions/us-east4/forwardingRules/vcf-mgmt-sddcm-fr",
     // Fully qualified domain name for SDDC Manager / VCF Installer
     "vcf_installer_fqdn": "sddcm.gcve-vcf.test.gve",
     // DNS server IP.  If gcp_subnet was created during Cloud DNS configuration from E2E TF, use the DNS reserved IP from that subnet. Otherwise, supply a custom DNS server IP. Defaults to GCP metadata server (169.254.169.254) if omitted.
