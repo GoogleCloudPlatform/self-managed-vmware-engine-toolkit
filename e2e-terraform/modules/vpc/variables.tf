@@ -28,7 +28,7 @@ variable "region" {
 
 variable "resource_name_prefix" {
   type        = string
-  default     = "myvcf"
+  default     = "my-vcf"
   description = "Global prefix prepended to all generated resource names."
 }
 

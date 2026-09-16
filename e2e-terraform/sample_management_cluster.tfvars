@@ -55,8 +55,8 @@ region = "us-east4"
 zone = "us-east4-c"
 
 # Description: Global prefix prepended to all auto-generated GCP resource names (VPC, subnets, NEGs, DNS zones, placement policies, instances) when explicit names are null or omitted. If resource names are explicitly specified, this prefix is left unused for those resources.
-# Valid Values: Lowercase alphanumeric string with hyphens (e.g., "vcf-mgmt-sample", "myvcf").
-# Default Value: "myvcf" (Optional)
+# Valid Values: Lowercase alphanumeric string with hyphens (e.g., "vcf-mgmt-sample", "my-vcf").
+# Default Value: "my-vcf" (Optional)
 resource_name_prefix = "vcf-mgmt-sample"
 
 # Description: Execution deployment mode determining the provisioning lifecycle phase:
@@ -262,7 +262,7 @@ machine_type = "z3-highmem-192-highlssd-metal"
 # Description: Full resource URI of the ESXi OS boot disk image for bare-metal host instances.
 # Valid Values: Valid full ESXi image URI matching projects/<project>/global/images/<image-name>.
 # Default Value: None (Required)
-esxi_image = "projects/gcve-bcom-vvol-project/global/images/vmware-esxi-9-1-0-virtchnl-v20260803" # TODO(tulippandey) Change this once public qualified images are available
+esxi_image = "projects/<YOUR_IMAGE_PROJECT_ID>/global/images/vmware-esxi-9-1-0-virtchnl-v20260803" # TODO(tulippandey) Change this once public qualified images are available
 
 # Description: Domain name appended to node_names to compute host FQDNs and used as the forward DNS zone domain.
 # Valid Values: Non-empty domain string (e.g., "gcve-vcf.test.gve.", "vcf.corp.local.").
@@ -413,11 +413,11 @@ additional_dynamic_nics = [
 # ==============================================================================
 # Supported IP modes and required map structures for appliance inputs:
 #   - For "reserved_custom" or "ephemeral_custom": Provide a map of appliance names mapped
-#     to static IPv4 addresses within the subnetwork CIDR (e.g., { "vcenter" = "10.200.0.11", "cloudproxy" = "10.200.0.10" }),
-#     or an IPv4 range string (e.g., { "vcf-service-runtime" = "10.200.0.50-10.200.0.80" }) which automatically expands into sequential entries.
+#     to static IPv4 addresses within the subnetwork CIDR (e.g., { "vc01" = "10.200.0.11", "collector" = "10.200.0.10" }),
+#     or an IPv4 range string (e.g., { "vsrt" = "10.200.0.51-10.200.0.80" }) which automatically expands into sequential entries.
 #   - For "reserved_automatic" or "ephemeral_automatic": Provide a map of appliance names mapped
-#     to empty string values "" (e.g., { "vcenter" = "", "cloudproxy" = "" }), or a positive integer count string
-#     (e.g., { "vcf-automation-node-ips" = "6" }) allowing GCP to automatically allocate IP addresses from the subnetwork CIDR while creating the required forwarding rules.
+#     to empty string values "" (e.g., { "vc01" = "", "collector" = "" }), or a positive integer count string
+#     (e.g., { "auto-node" = "6" }) allowing GCP to automatically allocate IP addresses from the subnetwork CIDR while creating the required forwarding rules.
 #   - If no appliances of that type are required, provide an empty map `{}`.
 # ==============================================================================
 
@@ -441,24 +441,25 @@ mgmt_ip_values = {
   "license"   = "10.200.0.16"             # VCF License Manager Service
   "shared01"  = "10.200.0.17"             # VCF Instance Service Manager
   "vidb"      = "10.200.0.18"             # VMware Workspace ONE Access / Identity Broker
-  "vsp01"     = "10.200.0.50-10.200.0.80" # VCF Service Runtime Platform IP Pool
+  "vsp01"     = "10.200.0.50"             # VCF Services Runtime Platform
+  "vsrt"      = "10.200.0.51-10.200.0.62" # VCF Services Runtime IP Pool
 
   # VMware Aria Suite Operations & Automation Services
   "ops01"    = "10.200.0.12" # VMware Aria Operations Primary Node
   "ops02"    = "10.200.0.24" # VMware Aria Operations Replica Node
   "ops03"    = "10.200.0.25" # VMware Aria Operations Data Node
   "fleetlcm" = "10.200.0.13" # VMware Aria Operations Fleet Management Service
-  # "vcfautomation"          = "10.200.0.20" # VMware Aria Automation Core Appliance (Required if and only if VCF Automation deployment is intended)
-  # "vcfruntime"             = "10.200.0.21" # VMware Aria Automation Orchestrator Runtime (Required if and only if VCF Automation deployment is intended)
-  # "vcf-automation-node-ips" = "10.200.0.81-10.200.0.86" # VCF Automation Cluster Node IP Pool (6 nodes, required if and only if VCF Automation is deployed)
+  # "auto-vip"      = "10.200.0.20"             # VCF Automation Appliance VIP (Required if and only if VCF Automation deployment is intended)
+  # "auto-platform" = "10.200.0.21"             # VCF Automation Runtime (Required if and only if VCF Automation deployment is intended)
+  # "auto-node"     = "10.200.0.81-10.200.0.85" # VCF Automation Cluster Node IP Pool (5 nodes, required if and only if VCF Automation is deployed)
 
   # NSX Management Cluster & Management Interfaces
   "nsx01" = "10.200.0.14" # NSX Management Cluster Floating Virtual IP (VIP)
   "nsx02" = "10.200.0.15" # NSX Manager Node 1 Management IP
   "nsx03" = "10.200.0.22" # NSX Manager Node 2 Management IP
   "nsx04" = "10.200.0.23" # NSX Manager Node 3 Management IP
-  # "nsx-edge-0" = "10.200.0.26" # NSX Edge Node 1 Management Interface (Required if and only if NSX Edge appliance is being deployed)
-  # "nsx-edge-1" = "10.200.0.27" # NSX Edge Node 2 Management Interface (Required if and only if NSX Edge appliance is being deployed)
+  # "nsx-edge01" = "10.200.0.26" # NSX Edge Appliance 1 Management Interface (Required if and only if NSX Edge appliance is being deployed)
+  # "nsx-edge02" = "10.200.0.27" # NSX Edge Appliance 2 Management Interface (Required if and only if NSX Edge appliance is being deployed)
 }
 
 # ------------------------------------------------------------------------------
@@ -475,9 +476,9 @@ nsx_ip_address_type = "reserved_custom"
 # Default Value: {} (Optional)
 nsx_ip_values = {
   # All appliances below are required if and only if NSX Edge appliance is being deployed
-  # "nsx-edge-vip"      = "10.200.3.10" # NSX Edge Cluster Uplink Virtual Floating IP (Required iff NSX Edge is deployed)
-  # "nsx-edge-0-uplink" = "10.200.3.11" # NSX Edge Node 1 External BGP/Uplink IP (Required iff NSX Edge is deployed)
-  # "nsx-edge-0-tep"    = "10.200.3.12" # NSX Edge Node 1 Geneve Overlay Tunnel Endpoint (TEP) (Required iff NSX Edge is deployed)
-  # "nsx-edge-1-uplink" = "10.200.3.13" # NSX Edge Node 2 External BGP/Uplink IP (Required iff NSX Edge is deployed)
-  # "nsx-edge-1-tep"    = "10.200.3.14" # NSX Edge Node 2 Geneve Overlay Tunnel Endpoint (TEP) (Required iff NSX Edge is deployed)
+  # "nsx-uplink-vip"    = "10.200.3.10" # NSX Edge Cluster Uplink Virtual Floating IP (Required iff NSX Edge is deployed)
+  # "nsx-uplink-edge01" = "10.200.3.11" # NSX Edge 1 External BGP/Uplink IP (Required iff NSX Edge is deployed)
+  # "nsx-tep-edge01"    = "10.200.3.12" # NSX Edge 1 Geneve Overlay Tunnel Endpoint (TEP) (Required iff NSX Edge is deployed)
+  # "nsx-uplink-edge02" = "10.200.3.13" # NSX Edge 2 External BGP/Uplink IP (Required iff NSX Edge is deployed)
+  # "nsx-tep-edge02"    = "10.200.3.14" # NSX Edge 2 Geneve Overlay Tunnel Endpoint (TEP) (Required iff NSX Edge is deployed)
 }

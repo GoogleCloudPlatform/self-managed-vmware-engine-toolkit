@@ -55,7 +55,7 @@ zone = "us-east4-b"
 
 # Description: Global prefix prepended to all auto-generated GCP resource names (subnets, NEGs, placement policies, instances) for this Data Cluster when explicit names are null or omitted. If resource names are explicitly specified, this prefix is left unused for those resources.
 # Valid Values: Lowercase alphanumeric string with hyphens (e.g., "vcf-data01-sample", "vcf-data02").
-# Default Value: "myvcf" (Optional)
+# Default Value: "my-vcf" (Optional)
 resource_name_prefix = "vcf-data01-sample"
 
 # Description: Execution deployment mode determining the provisioning lifecycle phase:
@@ -406,9 +406,9 @@ additional_dynamic_nics = [
 # ==============================================================================
 # Supported IP modes and required map structures for appliance inputs:
 #   - For "reserved_custom" or "ephemeral_custom": Provide a map of appliance names mapped
-#     to static IPv4 addresses within the subnetwork CIDR (e.g., { "vcenter" = "10.200.0.11" }).
+#     to static IPv4 addresses within the subnetwork CIDR (e.g., { "vc01" = "10.200.0.11" }).
 #   - For "reserved_automatic" or "ephemeral_automatic": Provide a map of appliance names mapped
-#     to empty string values "" (e.g., { "vcenter" = "" }), allowing GCP to automatically allocate
+#     to empty string values "" (e.g., { "vc01" = "" }), allowing GCP to automatically allocate
 #     IP addresses from the subnetwork CIDR while creating the required forwarding rules.
 #   - NOTE: Workload Domain Data Clusters do NOT host VCF control plane appliances
 #     (vCenter, NSX Managers reside in the Management Domain Cluster).
