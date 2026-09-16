@@ -17,7 +17,7 @@
 # Description: Example variable values for the Standalone IAM module.
 # ==============================================================================
 
-project_id       = "my-gcp-project-id"
+project_id       = "<YOUR_PROJECT_ID>"
 terraform_runner = "user:admin@example.com" # or "serviceAccount:tf-runner@my-project.iam.gserviceaccount.com"
 
 # Jumpbox SSH User identity
