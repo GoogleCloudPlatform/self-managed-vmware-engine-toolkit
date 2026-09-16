@@ -1049,6 +1049,353 @@ class TestGCPClient(unittest.TestCase):
             "https://staging-dns.sandbox.googleapis.com/dns/v1/projects/p/managedZones",
         )
 
+  def _mock_authorized_session_modules(self, mock_session):
+    """Helper to mock google.auth and AuthorizedSession in sys.modules and clients.gcp_client."""
+    mock_google = mock.MagicMock()
+    mock_auth = mock.MagicMock()
+    mock_auth.default.return_value = (mock.MagicMock(), "proj")
+    mock_auth_module = mock.MagicMock()
+    mock_auth_module.AuthorizedSession.return_value = mock_session
+    mock_transport = mock.MagicMock()
+    mock_transport.requests = mock_auth_module
+    mock_google.auth = mock_auth
+
+    import contextlib
+
+    @contextlib.contextmanager
+    def _cm():
+      with mock.patch("clients.gcp_client.google", mock_google):
+        with mock.patch.dict(
+            "sys.modules",
+            {
+                "google": mock_google,
+                "google.auth": mock_auth,
+                "google.auth.transport": mock_transport,
+                "google.auth.transport.requests": mock_auth_module,
+            },
+        ):
+          yield
+
+    return _cm()
+
+  def test_get_project_number_via_crm(self):
+    """Verifies numeric project number resolution via CRM API."""
+    mock_session = mock.MagicMock()
+    mock_resp = mock.MagicMock(ok=True, status_code=200)
+    mock_resp.json.return_value = {"projectNumber": "123456789012"}
+    mock_session.get.return_value = mock_resp
+
+    with self._mock_authorized_session_modules(mock_session):
+      res = self.client.get_project_number("my-customer-proj")
+      self.assertEqual(res, "123456789012")
+      mock_session.get.assert_called_once_with(
+          "https://cloudresourcemanager.googleapis.com/v1/projects/my-customer-proj"
+      )
+
+  def test_get_project_number_crm_403_raises_non_retryable_error(self):
+    """Verifies NonRetryableError when permission is denied (HTTP 403)."""
+    mock_session = mock.MagicMock()
+    mock_resp = mock.MagicMock(ok=False, status_code=403, text="Forbidden")
+    mock_session.get.return_value = mock_resp
+
+    with self._mock_authorized_session_modules(mock_session):
+      with self.assertRaises(models.NonRetryableError) as ctx:
+        self.client.get_project_number("forbidden-proj")
+      self.assertIn("Permission denied", str(ctx.exception))
+
+  def test_get_project_number_invalid_id_raises_validation_error(self):
+    """Verifies ValidationError when project_id is empty or invalid."""
+    with self.assertRaises(models.ValidationError):
+      self.client.get_project_number("")
+
+    with self.assertRaises(models.ValidationError):
+      self.client.get_project_number(None)  # type: ignore
+
+  def test_get_project_number_crm_404_raises_validation_error(self):
+    """Verifies ValidationError when project is not found (HTTP 404)."""
+    mock_session = mock.MagicMock()
+    mock_resp = mock.MagicMock(ok=False, status_code=404)
+    mock_session.get.return_value = mock_resp
+
+    with self._mock_authorized_session_modules(mock_session):
+      with self.assertRaises(models.ValidationError) as ctx:
+        self.client.get_project_number("nonexistent-proj")
+      self.assertIn("does not exist", str(ctx.exception))
+
+  def test_get_project_number_non_numeric_raises_validation_error(self):
+    """Verifies ValidationError when CRM response does not contain a numeric projectNumber."""
+    mock_session = mock.MagicMock()
+    mock_resp = mock.MagicMock(ok=True, status_code=200)
+    mock_resp.json.return_value = {"projectNumber": "invalid_alpha"}
+    mock_session.get.return_value = mock_resp
+
+    with self._mock_authorized_session_modules(mock_session):
+      with self.assertRaises(models.ValidationError) as ctx:
+        self.client.get_project_number("my-customer-proj")
+      self.assertIn("did not contain a valid numeric 'projectNumber'", str(ctx.exception))
+
+  def test_grant_project_iam_role_already_present_noop(self):
+    """Verifies that grant_project_iam_role performs no write if binding already exists."""
+    mock_session = mock.MagicMock()
+    mock_get_resp = mock.MagicMock(ok=True, status_code=200)
+    mock_get_resp.json.return_value = {
+        "bindings": [{
+            "role": "roles/compute.networkAdmin",
+            "members": ["serviceAccount:service-123@gcp-sa-network-drift.iam.gserviceaccount.com"],
+        }],
+        "etag": "etag-existing-123",
+    }
+    mock_session.post.return_value = mock_get_resp
+
+    with self._mock_authorized_session_modules(mock_session):
+      res = self.client.grant_project_iam_role(
+          project_id="my-proj",
+          member="serviceAccount:service-123@gcp-sa-network-drift.iam.gserviceaccount.com",
+          role_name="roles/compute.networkAdmin",
+      )
+      self.assertFalse(res)
+      # Verify :setIamPolicy was NEVER called
+      self.assertEqual(mock_session.post.call_count, 1)
+
+  def test_grant_project_iam_role_add_to_existing_role(self):
+    """Verifies appending member to existing role binding and saving policy."""
+    mock_session = mock.MagicMock()
+    mock_get_resp = mock.MagicMock(ok=True, status_code=200)
+    mock_get_resp.json.return_value = {
+        "bindings": [{
+            "role": "roles/compute.networkAdmin",
+            "members": ["user:operator@example.com"],
+        }],
+        "etag": "etag-v1",
+    }
+    mock_set_resp = mock.MagicMock(ok=True, status_code=200)
+    mock_session.post.side_effect = [mock_get_resp, mock_set_resp]
+
+    with self._mock_authorized_session_modules(mock_session):
+      res = self.client.grant_project_iam_role(
+          project_id="my-proj",
+          member="serviceAccount:service-123@gcp-sa-network-drift.iam.gserviceaccount.com",
+          role_name="roles/compute.networkAdmin",
+      )
+      self.assertTrue(res)
+      self.assertEqual(mock_session.post.call_count, 2)
+      set_call_args = mock_session.post.call_args_list[1]
+      sent_policy = set_call_args.kwargs["json"]["policy"]
+      target_binding = [b for b in sent_policy["bindings"] if b["role"] == "roles/compute.networkAdmin"][0]
+      self.assertIn("user:operator@example.com", target_binding["members"])
+      self.assertIn(
+          "serviceAccount:service-123@gcp-sa-network-drift.iam.gserviceaccount.com",
+          target_binding["members"],
+      )
+
+  def test_grant_project_iam_role_create_new_role_binding(self):
+    """Verifies creating a new binding when target role does not exist in policy."""
+    mock_session = mock.MagicMock()
+    mock_get_resp = mock.MagicMock(ok=True, status_code=200)
+    mock_get_resp.json.return_value = {
+        "bindings": [{
+            "role": "roles/viewer",
+            "members": ["user:alice@example.com"],
+        }],
+        "etag": "etag-v1",
+    }
+    mock_set_resp = mock.MagicMock(ok=True, status_code=200)
+    mock_session.post.side_effect = [mock_get_resp, mock_set_resp]
+
+    with self._mock_authorized_session_modules(mock_session):
+      res = self.client.grant_project_iam_role(
+          project_id="my-proj",
+          member="serviceAccount:service-123@gcp-sa-network-drift.iam.gserviceaccount.com",
+          role_name="roles/compute.networkAdmin",
+      )
+      self.assertTrue(res)
+      sent_policy = mock_session.post.call_args_list[1].kwargs["json"]["policy"]
+      roles = [b["role"] for b in sent_policy["bindings"]]
+      self.assertIn("roles/viewer", roles)
+      self.assertIn("roles/compute.networkAdmin", roles)
+
+  def test_grant_project_iam_role_conflict_409_retries_and_succeeds(self):
+    """Verifies HTTP 409 conflict triggers retry with fresh getIamPolicy."""
+    mock_session = mock.MagicMock()
+    # Attempt 1: get -> policy_v1, set -> 409 Conflict
+    resp_get_1 = mock.MagicMock(ok=True, status_code=200)
+    resp_get_1.json.return_value = {"bindings": [], "etag": "etag-stale"}
+    resp_set_1 = mock.MagicMock(ok=False, status_code=409, text="ABORTED: etag mismatch")
+
+    # Attempt 2: get -> policy_v2, set -> 200 OK
+    resp_get_2 = mock.MagicMock(ok=True, status_code=200)
+    resp_get_2.json.return_value = {"bindings": [], "etag": "etag-fresh"}
+    resp_set_2 = mock.MagicMock(ok=True, status_code=200)
+
+    mock_session.post.side_effect = [resp_get_1, resp_set_1, resp_get_2, resp_set_2]
+
+    with self._mock_authorized_session_modules(mock_session):
+      with mock.patch("time.sleep") as mock_sleep:
+        res = self.client.grant_project_iam_role(
+            project_id="my-proj",
+            member="serviceAccount:service-123@gcp-sa-network-drift.iam.gserviceaccount.com",
+            role_name="roles/compute.networkAdmin",
+        )
+        self.assertTrue(res)
+        self.assertEqual(mock_session.post.call_count, 4)
+        mock_sleep.assert_called_once()
+
+  def test_grant_project_iam_role_permission_denied_403_raises_validation_error(self):
+    """Verifies HTTP 403 Forbidden raises ValidationError with remediation message."""
+    mock_session = mock.MagicMock()
+    mock_get_resp = mock.MagicMock(ok=False, status_code=403, text="Permission denied")
+    mock_session.post.return_value = mock_get_resp
+
+    with self._mock_authorized_session_modules(mock_session):
+      with self.assertRaises(models.ValidationError) as ctx:
+        self.client.grant_project_iam_role(
+            project_id="my-proj",
+            member="serviceAccount:service-123@gcp-sa-network-drift.iam.gserviceaccount.com",
+            role_name="roles/compute.networkAdmin",
+        )
+      self.assertIn("Permission denied", str(ctx.exception))
+      self.assertIn("projectIamAdmin", str(ctx.exception))
+
+  def test_ensure_drift_manager_p4sa_iam(self):
+    """Verifies end-to-end ensure_drift_manager_p4sa_iam orchestration in prod."""
+    with mock.patch.object(self.client, "get_project_number", return_value="123456789012") as mock_get_num:
+      with mock.patch.object(self.client, "grant_project_iam_role", return_value=True) as mock_grant:
+        res = self.client.ensure_drift_manager_p4sa_iam("my-proj")
+        self.assertEqual(
+            res,
+            "service-123456789012@gcp-sa-network-drift.iam.gserviceaccount.com",
+        )
+        mock_get_num.assert_called_once_with("my-proj")
+        mock_grant.assert_called_once_with(
+            project_id="my-proj",
+            member="serviceAccount:service-123456789012@gcp-sa-network-drift.iam.gserviceaccount.com",
+            role_name="roles/compute.networkAdmin",
+        )
+
+  @mock.patch.dict("os.environ", {"OFFLINE_DEPOT_ENV": "staging"})
+  def test_ensure_drift_manager_p4sa_iam_staging(self):
+    """Verifies ensure_drift_manager_p4sa_iam targets staging P4SA producer project."""
+    with mock.patch.object(self.client, "get_project_number", return_value="123456789012"):
+      with mock.patch.object(self.client, "grant_project_iam_role", return_value=True) as mock_grant:
+        res = self.client.ensure_drift_manager_p4sa_iam("my-staging-proj")
+        self.assertEqual(
+            res,
+            "service-123456789012@gcp-sa-staging-network-drift.iam.gserviceaccount.com",
+        )
+        mock_grant.assert_called_once_with(
+            project_id="my-staging-proj",
+            member="serviceAccount:service-123456789012@gcp-sa-staging-network-drift.iam.gserviceaccount.com",
+            role_name="roles/compute.networkAdmin",
+        )
+
+  @mock.patch.dict("os.environ", {"OFFLINE_DEPOT_ENV": "autopush"})
+  def test_ensure_drift_manager_p4sa_iam_autopush(self):
+    """Verifies ensure_drift_manager_p4sa_iam targets autopush P4SA producer project."""
+    with mock.patch.object(self.client, "get_project_number", return_value="123456789012"):
+      with mock.patch.object(self.client, "grant_project_iam_role", return_value=True) as mock_grant:
+        res = self.client.ensure_drift_manager_p4sa_iam("my-autopush-proj")
+        self.assertEqual(
+            res,
+            "service-123456789012@gcp-sa-autopush-network-drift.iam.gserviceaccount.com",
+        )
+        mock_grant.assert_called_once_with(
+            project_id="my-autopush-proj",
+            member="serviceAccount:service-123456789012@gcp-sa-autopush-network-drift.iam.gserviceaccount.com",
+            role_name="roles/compute.networkAdmin",
+        )
+
+  @mock.patch.dict("os.environ", {"OFFLINE_DEPOT_ENV": "unknown_env"})
+  def test_ensure_drift_manager_p4sa_iam_fallback_default_domain(self):
+    """Verifies unknown OFFLINE_DEPOT_ENV falls back to DEFAULT_P4SA_DOMAIN."""
+    with mock.patch.object(self.client, "get_project_number", return_value="123456789012"):
+      with mock.patch.object(self.client, "grant_project_iam_role", return_value=True) as mock_grant:
+        res = self.client.ensure_drift_manager_p4sa_iam("my-custom-proj")
+        self.assertEqual(
+            res,
+            "service-123456789012@gcp-sa-network-drift.iam.gserviceaccount.com",
+        )
+        mock_grant.assert_called_once_with(
+            project_id="my-custom-proj",
+            member="serviceAccount:service-123456789012@gcp-sa-network-drift.iam.gserviceaccount.com",
+            role_name="roles/compute.networkAdmin",
+        )
+
+  def test_execute_with_retry_success_first_try(self):
+    """Verifies that _execute_with_retry returns result immediately on first try."""
+    mock_op = mock.MagicMock(return_value="success_val")
+    res = self.client._execute_with_retry(
+        operation=mock_op,
+        max_attempts=3,
+        base_delay=0.5,
+        operation_name="test_op",
+    )
+    self.assertEqual(res, "success_val")
+    self.assertEqual(mock_op.call_count, 1)
+
+  def test_execute_with_retry_retries_and_succeeds(self):
+    """Verifies retry and exponential backoff when transient fault resolves."""
+    mock_op = mock.MagicMock()
+    mock_op.side_effect = [RuntimeError("transient network drop"), "resolved"]
+
+    with mock.patch("time.sleep") as mock_sleep:
+      res = self.client._execute_with_retry(
+          operation=mock_op,
+          max_attempts=3,
+          base_delay=0.5,
+          operation_name="test_op",
+      )
+      self.assertEqual(res, "resolved")
+      self.assertEqual(mock_op.call_count, 2)
+      mock_sleep.assert_called_once_with(0.5)
+
+  def test_execute_with_retry_fatal_exception_no_retry(self):
+    """Verifies fatal non-retryable exceptions immediately raise without retry."""
+    mock_op = mock.MagicMock(side_effect=models.ValidationError("bad param"))
+    with mock.patch("time.sleep") as mock_sleep:
+      with self.assertRaises(models.ValidationError):
+        self.client._execute_with_retry(
+            operation=mock_op,
+            max_attempts=3,
+            base_delay=0.5,
+            operation_name="test_op",
+        )
+      mock_sleep.assert_not_called()
+      self.assertEqual(mock_op.call_count, 1)
+
+  def test_execute_with_retry_exhaustion_raises_retryable_error(self):
+    """Verifies reaching max attempts raises RetryableError."""
+    mock_op = mock.MagicMock(side_effect=RuntimeError("still down"))
+    with mock.patch("time.sleep") as mock_sleep:
+      with self.assertRaises(models.RetryableError) as ctx:
+        self.client._execute_with_retry(
+            operation=mock_op,
+            max_attempts=3,
+            base_delay=0.5,
+            operation_name="test_op",
+        )
+      self.assertIn("Exhausted max attempts", str(ctx.exception))
+      self.assertEqual(mock_op.call_count, 3)
+      self.assertEqual(mock_sleep.call_count, 2)
+
+  def test_execute_with_retry_caps_at_max_delay(self):
+    """Verifies that exponential backoff does not exceed max_delay."""
+    mock_op = mock.MagicMock(side_effect=[RuntimeError("err"), "ok"])
+    with mock.patch("time.sleep") as mock_sleep:
+      res = self.client._execute_with_retry(
+          operation=mock_op,
+          max_attempts=3,
+          base_delay=10.0,
+          max_delay=5.0,
+          operation_name="test_op",
+      )
+      self.assertEqual(res, "ok")
+      # base_delay * (2 ** 0) = 10.0, capped at max_delay = 5.0
+      mock_sleep.assert_called_once_with(5.0)
+
 
 if __name__ == "__main__":
   unittest.main()
+
+
+
+
