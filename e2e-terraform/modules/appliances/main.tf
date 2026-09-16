@@ -201,6 +201,15 @@ resource "google_compute_region_backend_service" "mgmt_backends" {
     group          = var.mgmt_neg_self_link
     balancing_mode = "CONNECTION"
   }
+
+  # The initial resource is created with the specified leader instance, but it is not
+  # updated during later terraform applies because leader instance management is
+  # expected to be done by an external process.
+  lifecycle {
+    ignore_changes = [
+      ha_policy[0].leader[0].network_endpoint[0].instance,
+    ]
+  }
 }
 
 resource "google_compute_forwarding_rule" "mgmt_forwarding_rules" {
@@ -245,6 +254,15 @@ resource "google_compute_region_backend_service" "nsx_backends" {
   backend {
     group          = var.nsx_neg_self_link
     balancing_mode = "CONNECTION"
+  }
+
+  # The initial resource is created with the specified leader instance, but it is not
+  # updated during later terraform applies because leader instance management is
+  # expected to be done by an external process.
+  lifecycle {
+    ignore_changes = [
+      ha_policy[0].leader[0].network_endpoint[0].instance,
+    ]
   }
 }
 
