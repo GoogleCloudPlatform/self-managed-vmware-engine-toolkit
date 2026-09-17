@@ -232,7 +232,7 @@ output "gcp_resources_self_links" {
 
 output "neg_attachment_commands" {
   value       = module.hosts.neg_attachment_commands
-  description = "gcloud CLI commands to attach newly added ESXi host instances to Management and NSX NEGs in 'node_addition' mode, or confirmation that NEGs are already attached in 'cluster_creation' and 'appliance_addition' modes"
+  description = "gcloud CLI commands to attach newly added ESXi host instances to Management and NSX NEGs in 'node_addition' mode, or confirmation that NEGs are already attached/detached in 'cluster_creation', 'node_deletion', and 'appliance_addition' modes"
 }
 
 # ==============================================================================

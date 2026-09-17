@@ -36,11 +36,11 @@ variable "resource_name_prefix" {
 variable "deployment_mode" {
   type        = string
   default     = "cluster_creation"
-  description = "Execution deployment mode: 'cluster_creation' (default), 'node_addition', or 'appliance_addition'."
+  description = "Execution deployment mode: 'cluster_creation' (default), 'node_addition', 'node_deletion', or 'appliance_addition'."
 
   validation {
-    condition     = contains(["cluster_creation", "node_addition", "appliance_addition"], var.deployment_mode)
-    error_message = "deployment_mode must be one of: 'cluster_creation', 'node_addition', 'appliance_addition'."
+    condition     = contains(["cluster_creation", "node_addition", "node_deletion", "appliance_addition"], var.deployment_mode)
+    error_message = "deployment_mode must be one of: 'cluster_creation', 'node_addition', 'node_deletion', 'appliance_addition'."
   }
 }
 

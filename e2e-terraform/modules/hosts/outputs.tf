@@ -18,44 +18,44 @@ output "node_names" {
 }
 
 output "node_self_links" {
-  value       = google_compute_instance.nodes[*].self_link
+  value       = [for n in local.effective_node_names : google_compute_instance.nodes[n].self_link]
   description = "List of self links for the provisioned bare-metal ESXi instances"
 }
 
 output "node_boot_disk_self_links" {
-  value       = google_compute_disk.boot_disks[*].self_link
+  value       = [for n in local.effective_node_names : google_compute_disk.boot_disks[n].self_link]
   description = "List of self links for the provisioned bare-metal ESXi boot disks"
 }
 
 output "node_mgmt_ips" {
-  value       = google_compute_instance.nodes[*].network_interface[0].network_ip
+  value       = [for n in local.effective_node_names : google_compute_instance.nodes[n].network_interface[0].network_ip]
   description = "List of Management NIC IP addresses assigned to ESXi hosts"
 }
 
 output "node_primary_ips" {
-  value       = google_compute_instance.nodes[*].network_interface[0].network_ip
+  value       = [for n in local.effective_node_names : google_compute_instance.nodes[n].network_interface[0].network_ip]
   description = "Alias for Management NIC IP addresses for compatibility"
 }
 
 output "node_vsan_ips" {
-  value       = [for instance in google_compute_instance.nodes : instance.network_interface[1].network_ip]
+  value       = [for n in local.effective_node_names : google_compute_instance.nodes[n].network_interface[1].network_ip]
   description = "List of vSAN NIC IP addresses assigned to ESXi hosts"
 }
 
 output "node_vmotion_ips" {
-  value       = [for instance in google_compute_instance.nodes : instance.network_interface[2].network_ip]
+  value       = [for n in local.effective_node_names : google_compute_instance.nodes[n].network_interface[2].network_ip]
   description = "List of vMotion NIC IP addresses assigned to ESXi hosts"
 }
 
 output "node_nsx_tep_ips" {
-  value       = [for instance in google_compute_instance.nodes : instance.network_interface[3].network_ip]
+  value       = [for n in local.effective_node_names : google_compute_instance.nodes[n].network_interface[3].network_ip]
   description = "List of NSX TEP NIC IP addresses assigned to ESXi hosts"
 }
 
 output "node_dynamic_nic_ips" {
   value = {
     for idx, nic in var.additional_dynamic_nics : nic.name => [
-      for instance in google_compute_instance.nodes : instance.network_interface[4 + idx].network_ip
+      for n in local.effective_node_names : google_compute_instance.nodes[n].network_interface[4 + idx].network_ip
     ]
   }
   description = "Map of dynamic NIC names to lists of assigned IP addresses across all host instances"
@@ -133,10 +133,15 @@ output "neg_attachment_commands" {
     var.deployment_mode == "cluster_creation" ? {
       mgmt_neg = "NEGs are already attached automatically during cluster_creation mode."
       nsx_neg  = "NEGs are already attached automatically during cluster_creation mode."
-      } : {
-      mgmt_neg = "NEGs are already attached to existing cluster nodes; not applicable for appliance_addition mode."
-      nsx_neg  = "NEGs are already attached to existing cluster nodes; not applicable for appliance_addition mode."
-    }
+      } : (
+      var.deployment_mode == "node_deletion" ? {
+        mgmt_neg = "NEG endpoints are automatically detached when instances are deleted; not applicable for node_deletion mode."
+        nsx_neg  = "NEG endpoints are automatically detached when instances are deleted; not applicable for node_deletion mode."
+        } : {
+        mgmt_neg = "NEGs are already attached to existing cluster nodes; not applicable for appliance_addition mode."
+        nsx_neg  = "NEGs are already attached to existing cluster nodes; not applicable for appliance_addition mode."
+      }
+    )
   )
-  description = "gcloud CLI commands to attach newly added ESXi host instances to Management and NSX NEGs in 'node_addition' mode, or confirmation that NEGs are already attached in 'cluster_creation' and 'appliance_addition' modes"
+  description = "gcloud CLI commands to attach newly added ESXi host instances to Management and NSX NEGs in 'node_addition' mode, or confirmation that NEGs are already attached/detached in 'cluster_creation', 'node_deletion', and 'appliance_addition' modes"
 }

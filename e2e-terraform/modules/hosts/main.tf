@@ -29,18 +29,22 @@ locals {
     endswith(var.domain_name, ".") ? var.domain_name : "${var.domain_name}."
   ) : null
 
-  effective_hostnames = [
-    for name in local.effective_node_names : "${name}.${trimsuffix(var.domain_name, ".")}"
-  ]
+  effective_hostnames = {
+    for name in local.effective_node_names : name => "${name}.${trimsuffix(var.domain_name, ".")}"
+  }
 
   effective_availability_count = var.create_placement_policy ? var.availability_count : data.google_compute_resource_policy.existing_policy[0].group_placement_policy[0].availability_domain_count
 
-  effective_availability_domains = var.availability_domains != null ? var.availability_domains : [
-    for i in range(var.number_of_nodes) : ((i % local.effective_availability_count) + 1)
-  ]
+  effective_availability_domains = {
+    for idx, name in local.effective_node_names : name => (
+      var.availability_domains != null ?
+      var.availability_domains[idx] :
+      ((idx % local.effective_availability_count) + 1)
+    )
+  }
 
   esxi_hosts_dns_map = {
-    for i, name in local.effective_node_names : name => google_compute_instance.nodes[i].network_interface[0].network_ip
+    for name in local.effective_node_names : name => google_compute_instance.nodes[name].network_interface[0].network_ip
   }
 
   node_ptr_record_names = {
@@ -129,10 +133,10 @@ module "mgmt_ip_allocator" {
   project_id            = var.project_id
   region                = var.region
   subnetwork            = var.mgmt_subnet_name
-  resource_name_prefix  = var.resource_name_prefix
-  address_name_template = "%s-mgmt-ip-%s"
+  resource_name_prefix  = ""
+  address_name_template = "%s%s-mgmt-ip"
   ip_address_type       = var.mgmt_ip_address_type
-  entities              = [for i in range(var.number_of_nodes) : tostring(i + 1)]
+  entities              = local.effective_node_names
   ip_values             = var.mgmt_ip_values
 }
 
@@ -141,10 +145,10 @@ module "vsan_ip_allocator" {
   project_id            = var.project_id
   region                = var.region
   subnetwork            = var.vsan_subnet_name
-  resource_name_prefix  = var.resource_name_prefix
-  address_name_template = "%s-vsan-ip-%s"
+  resource_name_prefix  = ""
+  address_name_template = "%s%s-vsan-ip"
   ip_address_type       = var.vsan_ip_address_type
-  entities              = [for i in range(var.number_of_nodes) : tostring(i + 1)]
+  entities              = local.effective_node_names
   ip_values             = var.vsan_ip_values
 }
 
@@ -153,10 +157,10 @@ module "vmotion_ip_allocator" {
   project_id            = var.project_id
   region                = var.region
   subnetwork            = var.vmotion_subnet_name
-  resource_name_prefix  = var.resource_name_prefix
-  address_name_template = "%s-vmotion-ip-%s"
+  resource_name_prefix  = ""
+  address_name_template = "%s%s-vmotion-ip"
   ip_address_type       = var.vmotion_ip_address_type
-  entities              = [for i in range(var.number_of_nodes) : tostring(i + 1)]
+  entities              = local.effective_node_names
   ip_values             = var.vmotion_ip_values
 }
 
@@ -165,10 +169,10 @@ module "nsx_tep_ip_allocator" {
   project_id            = var.project_id
   region                = var.region
   subnetwork            = var.nsx_tep_subnet_name
-  resource_name_prefix  = var.resource_name_prefix
-  address_name_template = "%s-nsx-tep-ip-%s"
+  resource_name_prefix  = ""
+  address_name_template = "%s%s-nsx-tep-ip"
   ip_address_type       = var.nsx_tep_ip_address_type
-  entities              = [for i in range(var.number_of_nodes) : tostring(i + 1)]
+  entities              = local.effective_node_names
   ip_values             = var.nsx_tep_ip_values
 }
 
@@ -178,10 +182,10 @@ module "dynamic_nic_ip_allocators" {
   project_id            = var.project_id
   region                = var.region
   subnetwork            = each.value.subnet_name
-  resource_name_prefix  = var.resource_name_prefix
-  address_name_template = "%s-${each.key}-ip-%s"
+  resource_name_prefix  = ""
+  address_name_template = "%s%s-${each.key}-ip"
   ip_address_type       = each.value.ip_address_type
-  entities              = [for i in range(var.number_of_nodes) : tostring(i + 1)]
+  entities              = local.effective_node_names
   ip_values             = each.value.ip_values != null ? each.value.ip_values : []
 }
 
@@ -190,9 +194,9 @@ module "dynamic_nic_ip_allocators" {
 # ==============================================================================
 
 resource "google_compute_disk" "boot_disks" {
-  count                  = var.number_of_nodes
+  for_each               = toset(local.effective_node_names)
   project                = var.project_id
-  name                   = "${local.effective_node_names[count.index]}-boot-disk"
+  name                   = "${each.key}-boot-disk"
   zone                   = var.zone
   image                  = var.esxi_image
   type                   = "hyperdisk-balanced"
@@ -222,13 +226,13 @@ resource "google_compute_disk" "boot_disks" {
 }
 
 resource "google_compute_instance" "nodes" {
-  count               = var.number_of_nodes
+  for_each            = toset(local.effective_node_names)
   project             = var.project_id
-  name                = local.effective_node_names[count.index]
+  name                = each.key
   machine_type        = var.machine_type
   zone                = var.zone
   deletion_protection = var.deletion_protection
-  hostname            = local.effective_hostnames[count.index]
+  hostname            = local.effective_hostnames[each.key]
   can_ip_forward      = true
 
   labels = {
@@ -244,7 +248,7 @@ resource "google_compute_instance" "nodes" {
   }
 
   boot_disk {
-    source = google_compute_disk.boot_disks[count.index].self_link
+    source = google_compute_disk.boot_disks[each.key].self_link
   }
 
   service_account {
@@ -260,7 +264,7 @@ resource "google_compute_instance" "nodes" {
   ]
 
   scheduling {
-    availability_domain = local.effective_availability_domains[count.index]
+    availability_domain = local.effective_availability_domains[each.key]
     on_host_maintenance = "TERMINATE"
     automatic_restart   = true
 
@@ -276,7 +280,7 @@ resource "google_compute_instance" "nodes" {
     subnetwork = var.mgmt_subnet_name
     nic_type   = "IDPF"
     stack_type = "IPV4_ONLY"
-    network_ip = module.mgmt_ip_allocator.effective_ips[count.index]
+    network_ip = module.mgmt_ip_allocator.effective_ip_map[each.key]
   }
 
   # vSAN NIC
@@ -284,7 +288,7 @@ resource "google_compute_instance" "nodes" {
     subnetwork = var.vsan_subnet_name
     vlan       = var.vsan_vlan_id
     stack_type = "IPV4_ONLY"
-    network_ip = module.vsan_ip_allocator.effective_ips[count.index]
+    network_ip = module.vsan_ip_allocator.effective_ip_map[each.key]
   }
 
   # vMotion NIC
@@ -292,7 +296,7 @@ resource "google_compute_instance" "nodes" {
     subnetwork = var.vmotion_subnet_name
     vlan       = var.vmotion_vlan_id
     stack_type = "IPV4_ONLY"
-    network_ip = module.vmotion_ip_allocator.effective_ips[count.index]
+    network_ip = module.vmotion_ip_allocator.effective_ip_map[each.key]
   }
 
   # NSX TEP NIC
@@ -300,7 +304,7 @@ resource "google_compute_instance" "nodes" {
     subnetwork = var.nsx_tep_subnet_name
     vlan       = var.nsx_tep_vlan_id
     stack_type = "IPV4_ONLY"
-    network_ip = module.nsx_tep_ip_allocator.effective_ips[count.index]
+    network_ip = module.nsx_tep_ip_allocator.effective_ip_map[each.key]
   }
 
   # Additional Dynamic NICs
@@ -310,7 +314,7 @@ resource "google_compute_instance" "nodes" {
       subnetwork = network_interface.value.subnet_name
       vlan       = network_interface.value.vlan_id
       stack_type = "IPV4_ONLY"
-      network_ip = module.dynamic_nic_ip_allocators[network_interface.value.name].effective_ips[count.index]
+      network_ip = module.dynamic_nic_ip_allocators[network_interface.value.name].effective_ip_map[each.key]
     }
   }
 }
@@ -328,7 +332,7 @@ resource "google_compute_network_endpoints" "mgmt_endpoints" {
   deletion_policy        = "ABANDON" # To prevent detach call during destroy, instance deletion does not depend on detachment (implicitly handled)
 
   dynamic "network_endpoints" {
-    for_each = google_compute_instance.nodes[*].name
+    for_each = [for n in local.effective_node_names : google_compute_instance.nodes[n].name]
     content {
       instance = network_endpoints.value
     }
@@ -344,7 +348,7 @@ resource "google_compute_network_endpoints" "nsx_endpoints" {
   deletion_policy        = "ABANDON" # To prevent detach call during destroy, instance deletion does not depend on detachment (implicitly handled)
 
   dynamic "network_endpoints" {
-    for_each = google_compute_instance.nodes[*].name
+    for_each = [for n in local.effective_node_names : google_compute_instance.nodes[n].name]
     content {
       instance = network_endpoints.value
     }

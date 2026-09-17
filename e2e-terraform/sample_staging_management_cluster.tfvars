@@ -29,7 +29,22 @@
 #    - Run `terraform apply`.
 #    - After Terraform apply finishes, execute the generated `gcloud` NEG attachment commands printed in the Terraform outputs (`neg_attachment_commands`) to attach the new node interfaces to their zonal NEGs.
 #
-# 3. Day-2 Appliance Addition:
+# 3. Day-2 Node Deletion (Cluster Scale-In / Contraction):
+#    - Set `deployment_mode = "node_deletion"`.
+#    - Decrement `number_of_nodes` to the new total node count.
+#    - Update list-type fields to remove the targeted node(s):
+#        * ALWAYS explicitly specify `node_names` as the exact list of names of the remaining nodes (i.e., the current list with the targeted node name(s) removed).
+#          NOTE: This is REQUIRED in node_deletion mode even if `node_names` was NOT specified (names were auto-generated) during cluster creation or any prior Day-2 operation triggered from Terraform.
+#          In that case, list the auto-generated names of the remaining nodes (e.g., "<resource_name_prefix>-node-1", ...). Otherwise, the auto-generated names are recomputed from `number_of_nodes`,
+#          which removes the node(s) with the highest index instead of the intended node(s).
+#        * ALWAYS explicitly specify `availability_domains` as the exact list of availability domain IDs of the remaining nodes (in the same order as the remaining nodes).
+#          NOTE: This is REQUIRED in node_deletion mode even if `availability_domains` was NOT specified (left null/unspecified) during cluster creation or any prior Day-2 operation triggered from Terraform.
+#          Otherwise, the automatic round-robin AD assignment (index-based) is recomputed for the remaining nodes, which can change the ADs of existing nodes and force their recreation.
+#        * For custom IP modes, remove its IP address from `mgmt_nic_ip_values`, `vsan_ip_values`, `vmotion_ip_values`, `nsx_tep_ip_values`, and dynamic NIC `ip_values`.
+#    - Run `terraform apply`. Terraform will smoothly destroy the specified node instance, its boot disk,
+#      its reserved IPs, and its Cloud DNS A/PTR records without affecting remaining nodes.
+#
+# 4. Day-2 Appliance Addition:
 #    - Set `deployment_mode = "appliance_addition"`.
 #    - In Section 5, add the new appliance name(s) and static IP address(es) to `mgmt_ip_values` (for Management ILB forwarding rules) and/or `nsx_ip_values` (for NSX Datapath ILB forwarding rules). Example: `"vcf-one-more-appliance" = "10.250.0.28"` OR `"vcf-one-more-appliance" = ""` if your address type is ephemeral/reserved automatic.
 #    - Run `terraform apply`. Terraform will provision the new ILB forwarding rules, IP reservations, and Cloud DNS A/PTR records without modifying existing compute nodes.
@@ -60,10 +75,11 @@ zone = "<YOUR_ZONE>"
 resource_name_prefix = "vcf-mgmt-sample"
 
 # Description: Execution deployment mode determining the provisioning lifecycle phase:
-#   - "cluster_creation": Day-0/Day-1 initial cluster provisioning; creates infrastructure, bare-metal nodes, and attaches instances to NEGs via Terraform.
-#   - "node_addition": Day-2 node addition / cluster expansion; provisions new ESXi nodes and generates manual gcloud commands for NEG attachment.
-#   - "appliance_addition": Day-2 appliance provisioning; creates/updates ILB forwarding rules and DNS records for new appliances without modifying existing compute nodes.
-# Valid Values: "cluster_creation", "node_addition", "appliance_addition"
+#   - "cluster_creation": Day-0/Day-1 initial cluster provisioning; creates infrastructure, bare-metal nodes, and attaches instances to NEGs via Terraform. Customers should carry out VCF 9.x cluster creation (and management domain deployment if applicable) after provisioning GCP resources using cluster_creation mode here.
+#   - "node_addition": Day-2 node addition / cluster expansion; provisions new ESXi nodes, boot disks, reserved IPs, and DNS records, and generates manual gcloud commands for NEG attachment. Customers should add the nodes to the VCF 9.x cluster after carrying out GCP resource provisioning using node_addition mode here.
+#   - "node_deletion": Day-2 node scale-in; smoothly deletes targeted node instances, boot disks, reserved IPs, and DNS records while keeping remaining nodes untouched and bypassing NEG batch resources. Customers should delete the nodes from the VCF 9.x cluster before running deleting GCP resources using node_deletion mode here (essential for preventing traffic downtime).
+#   - "appliance_addition": Day-2 appliance provisioning; creates/updates ILB forwarding rules and DNS records for new appliances without modifying existing compute nodes. Customers should add the appliances to the VCF 9.x cluster after carrying out GCP resource provisioning using appliance_addition mode here.
+# Valid Values: "cluster_creation", "node_addition", "node_deletion", "appliance_addition"
 # Default Value: "cluster_creation" (Optional)
 deployment_mode = "cluster_creation"
 
@@ -269,7 +285,7 @@ esxi_image = "projects/<YOUR_IMAGE_PROJECT_ID>/global/images/vmware-esxi-9-1-0-v
 # Default Value: None (Required)
 domain_name = "gcve-vcf.test.gve."
 
-# Description: Explicit list of GCE node instance names. If null, names are auto-generated as ["<resource_name_prefix>-node-1", ...]. If specified, list length must match number_of_nodes. Note: If left null/unspecified during cluster creation, do not modify or specify during Day 2 node expansion.
+# Description: Explicit list of GCE node instance names. If null, names are auto-generated as ["<resource_name_prefix>-node-1", ...]. If specified, list length must match number_of_nodes. Note: If left null/unspecified during cluster creation, do not modify or specify during Day 2 node expansion. However, in node_deletion mode this MUST ALWAYS be explicitly specified with the names of the remaining nodes (even if names were auto-generated during all prior Terraform-triggered cluster operations) to ensure that the intended node is removed.
 # Valid Values: List of unique RFC 1035 compliant strings (e.g., ["vcf-mgmt-sample-node-1", "vcf-mgmt-sample-node-2", "vcf-mgmt-sample-node-3"]), or null.
 # Default Value: null (Optional)
 node_names = [
@@ -299,7 +315,7 @@ placement_policy_name = "vcf-mgmt-sample-placement-policy"
 # Default Value: 6 (Optional)
 availability_count = 6
 
-# Description: Explicit list of availability domain IDs per host node (values 1 to availability_count). If null, hosts are automatically distributed round-robin across availability domains. Note: If left null/unspecified during cluster creation, do not modify or specify during Day 2 node expansion.
+# Description: Explicit list of availability domain IDs per host node (values 1 to availability_count). If null, hosts are automatically distributed round-robin across availability domains. Note: If left null/unspecified during cluster creation, do not modify or specify during Day 2 node expansion. However, in node_deletion mode this MUST ALWAYS be explicitly specified with the existing AD assignments of the remaining nodes, even if it was never specified during any prior Terraform-triggered cluster operation.
 # Valid Values: List of integers (each between 1 and availability_count), or null (for automatic round-robin).
 # Default Value: null (Optional)
 availability_domains = [1, 2, 3, 4]
