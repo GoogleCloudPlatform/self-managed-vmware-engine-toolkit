@@ -61,12 +61,17 @@ locals {
   gcp_dns_reserved_ip = length(local.gcp_dns_reserved_ips) > 0 ? local.gcp_dns_reserved_ips[0] : null
 
   # VSP IP range calculation
-  vsp_range_raw   = lookup(var.mgmt_ip_values, "vsp01", "")
-  vsp_range_parts = length(split("-", local.vsp_range_raw)) == 2 ? split("-", local.vsp_range_raw) : []
-  vsp_start_ip = length(local.vsp_range_parts) == 2 ? (
-    can(cidrhost("${local.vsp_range_parts[0]}/24", 0)) && module.subnets.mgmt_subnet_cidr != null ? cidrhost(format("%s/%s", local.vsp_range_parts[0], split("/", module.subnets.mgmt_subnet_cidr)[1]), tonumber(split(".", local.vsp_range_parts[0])[3]) + 1) : local.vsp_range_parts[0]
+  vsrt_range_raw   = lookup(var.mgmt_ip_values, "vsrt", "")
+  vsrt_range_parts = length(split("-", local.vsrt_range_raw)) == 2 ? split("-", local.vsrt_range_raw) : []
+
+
+  vsp_start_ip = length(local.vsrt_range_parts) == 2 ? (
+    can(cidrhost("${local.vsrt_range_parts[0]}/24", 0)) && module.subnets.mgmt_subnet_cidr != null ? cidrhost(format("%s/%s", local.vsrt_range_parts[0], split("/", module.subnets.mgmt_subnet_cidr)[1]), tonumber(split(".", local.vsrt_range_parts[0])[3]) + 1) : local.vsrt_range_parts[0]
   ) : (module.subnets.mgmt_subnet_cidr != null ? cidrhost(module.subnets.mgmt_subnet_cidr, 51) : null)
-  vsp_end_ip = length(local.vsp_range_parts) == 2 ? local.vsp_range_parts[1] : (module.subnets.mgmt_subnet_cidr != null ? cidrhost(module.subnets.mgmt_subnet_cidr, 80) : null)
+
+
+  vsp_end_ip = length(local.vsrt_range_parts) == 2 ? local.vsrt_range_parts[1] : (
+    module.subnets.mgmt_subnet_cidr != null ? cidrhost(module.subnets.mgmt_subnet_cidr, 80) : null)
 }
 
 # ==============================================================================
@@ -409,7 +414,7 @@ output "management_domain_deployment_input_config" {
           endIpAddress   = local.vsp_end_ip
         }
       }
-      platformFqdn            = "vsp01-1.${local.domain}"
+      platformFqdn            = "vsp01.${local.domain}"
       instanceFqdn            = "shared01.${local.domain}"
       fleetFqdn               = "fleetlcm.${local.domain}"
       size                    = "medium"
