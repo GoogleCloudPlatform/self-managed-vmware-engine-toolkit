@@ -19,21 +19,21 @@
 
 # Required Parameters
 project_id = "<YOUR_PROJECT_ID>"
-region     = "us-east4"
+region     = "<YOUR_REGION>"
 
 
 # Network Parameters
 # Scenario A: Create a NEW Subnet (default)
 create_subnet = true
-vpc_name      = "vcf-mgmt-vpc" # Must be the same VPC hosting the ESXi nodes
-subnet_name   = "vcf-mgmt-jumpbox-subnet"
+vpc_name      = "vcf-mgmt-sample-vpc" # Must be the same VPC hosting the ESXi nodes
+subnet_name   = "vcf-mgmt-sample-jumpbox-subnet"
 subnet_cidr   = "10.1.100.0/29" # Min /29 CIDR required when creating new subnet
 
 # Scenario B: Use an EXISTING Subnet
 # If NAT & internet egress already exist on the network, set `enable_internet = false`.
 # create_subnet = false
-# vpc_name      = "vcf-mgmt-vpc" # Optional when create_subnet = false (must be the VPC hosting the ESXi nodes)
-# subnet_name   = "vcf-mgmt-existing-subnet"
+# vpc_name      = "vcf-mgmt-sample-vpc" # Optional when create_subnet = false (must be the VPC hosting the ESXi nodes)
+# subnet_name   = "vcf-mgmt-sample-existing-subnet"
 # subnet_cidr   = "" # Not required when using existing subnet
 
 # Cloud Router, Cloud NAT & Default Internet Route Egress Control
@@ -42,7 +42,7 @@ subnet_cidr   = "10.1.100.0/29" # Min /29 CIDR required when creating new subnet
 enable_internet = true
 
 # Jumpbox Settings
-jumpbox_name          = "vcf-mgmt-jumpbox"  # Optional: defaults to "smve-toolkit-jumpbox"
+jumpbox_name          = "vcf-mgmt-sample-jumpbox"  # Optional: defaults to "smve-toolkit-jumpbox"
 machine_type          = "e2-micro"              # Optional: defaults to "e2-micro"
 boot_disk_size        = 30                      # Optional: size in GB (defaults to 30, min 10 GB)
 boot_disk_type        = "pd-balanced"           # Optional: defaults to "pd-balanced" (options: "pd-standard", "pd-balanced", "pd-ssd", "pd-extreme")

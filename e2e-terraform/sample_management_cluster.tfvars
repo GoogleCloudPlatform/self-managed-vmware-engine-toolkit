@@ -47,12 +47,12 @@ project_id = "<YOUR_PROJECT_ID>"
 # Description: Target GCP Region for infrastructure provisioning (e.g., VPC, subnets, load balancers, placement policy).
 # Valid Values: Valid GCP region name string (e.g., "us-east4", "us-central1").
 # Default Value: None (Required)
-region = "us-east4"
+region = "<YOUR_REGION>"
 
 # Description: Target GCP Zone for bare-metal ESXi host deployment and zonal Network Endpoint Groups (NEGs).
 # Valid Values: Valid GCP zone name string within the target region (e.g., "us-east4-c", "us-east4-b").
 # Default Value: None (Required)
-zone = "us-east4-c"
+zone = "<YOUR_ZONE>"
 
 # Description: Global prefix prepended to all auto-generated GCP resource names (VPC, subnets, NEGs, DNS zones, placement policies, instances) when explicit names are null or omitted. If resource names are explicitly specified, this prefix is left unused for those resources.
 # Valid Values: Lowercase alphanumeric string with hyphens (e.g., "vcf-mgmt-sample", "my-vcf").
@@ -267,7 +267,8 @@ esxi_image = "projects/<YOUR_IMAGE_PROJECT_ID>/global/images/vmware-esxi-9-1-0-v
 # Description: Domain name appended to node_names to compute host FQDNs and used as the forward DNS zone domain.
 # Valid Values: Non-empty domain string (e.g., "gcve-vcf.test.gve.", "vcf.corp.local.").
 # Default Value: None (Required)
-domain_name = "gcve-vcf.test.gve."
+# domain_name = "gcve-vcf.test.gve."
+domain_name = "<YOUR_DOMAIN_NAME>"
 
 # Description: Explicit list of GCE node instance names. If null, names are auto-generated as ["<resource_name_prefix>-node-1", ...]. If specified, list length must match number_of_nodes. Note: If left null/unspecified during cluster creation, do not modify or specify during Day 2 node expansion.
 # Valid Values: List of unique RFC 1035 compliant strings (e.g., ["vcf-mgmt-sample-node-1", "vcf-mgmt-sample-node-2", "vcf-mgmt-sample-node-3"]), or null.

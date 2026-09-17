@@ -47,12 +47,12 @@ project_id = "<YOUR_PROJECT_ID>"
 # Description: Target GCP Region for infrastructure provisioning (e.g., VPC, subnets, load balancers, placement policy).
 # Valid Values: Valid GCP region name string (e.g., "us-central1", "us-east4").
 # Default Value: None (Required)
-region = "us-central1"
+region = "<YOUR_REGION>"
 
 # Description: Target GCP Zone for bare-metal ESXi host deployment and zonal Network Endpoint Groups (NEGs).
 # Valid Values: Valid GCP zone name string within the target region (e.g., "us-central1-staginga", "us-central1-a").
 # Default Value: None (Required)
-zone = "us-central1-staginga"
+zone = "<YOUR_ZONE>"
 
 # Description: Global prefix prepended to all auto-generated GCP resource names (VPC, subnets, NEGs, DNS zones, placement policies, instances) when explicit names are null or omitted. If resource names are explicitly specified, this prefix is left unused for those resources.
 # Valid Values: Lowercase alphanumeric string with hyphens (e.g., "vcf-mgmt-sample", "my-vcf").
