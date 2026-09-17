@@ -14,7 +14,7 @@ import random
 import re
 import sys
 import time
-from typing import Any, Callable
+from typing import Any, Callable, Dict, Optional
 
 from clients import esxi_client
 from clients import gcp_client
@@ -228,6 +228,9 @@ def load_config(config_file_path: str) -> models.DeployerConfig:
           constants.ConfigKeys.ESXI_ROOT_PASSWORD_SECRET
       ],
       vcf_deployment_config=vcf_cfg,
+      log_file=data.get(constants.ConfigKeys.LOG_FILE),
+      log_dir=data.get(constants.ConfigKeys.LOG_DIR),
+      log_level=data.get(constants.ConfigKeys.LOG_LEVEL),
   )
   logger.debug(
       "Successfully loaded configuration profile for %s in %s/%s.",
@@ -238,18 +241,75 @@ def load_config(config_file_path: str) -> models.DeployerConfig:
   return config
 
 
-def run_pipeline(config_file_path: str) -> int:
+def _peek_logging_config(config_file_path: str) -> Dict[str, Any]:
+  """Best-effort peek of logging configuration keys from target JSON profile."""
+  try:
+    with open(config_file_path, "r", encoding="utf-8") as file:
+      content = file.read()
+      content = re.sub(r"//.*", "", content)
+      content = re.sub(r"/\*.*?\*/", "", content, flags=re.DOTALL)
+      data = json.loads(content)
+      if isinstance(data, dict):
+        return {
+            constants.ConfigKeys.LOG_FILE: data.get(
+                constants.ConfigKeys.LOG_FILE
+            ),
+            constants.ConfigKeys.LOG_DIR: data.get(
+                constants.ConfigKeys.LOG_DIR
+            ),
+            constants.ConfigKeys.LOG_LEVEL: data.get(
+                constants.ConfigKeys.LOG_LEVEL
+            ),
+        }
+  except Exception:  # pylint: disable=broad-exception-caught
+    pass
+  return {}
+
+
+def run_pipeline(
+    config_file_path: str,
+    log_file: Optional[str] = None,
+    log_dir: Optional[str] = None,
+    log_level: Optional[str] = None,
+) -> int:
   """Orchestrates execution across Phase 1, Phase 2 (a-e), and Phase 3.
 
   Args:
       config_file_path: Target path to master JSON deployment document.
+      log_file: Optional explicit path to jumpbox log file (overrides log_dir).
+      log_dir: Optional directory for timestamped jumpbox log files.
+      log_level: Optional console logging severity threshold (e.g. INFO, DEBUG).
 
   Returns:
       Integer process return exit code (0 for success, non-zero for failure).
   """
-  logger_mod.setup_logger(logger_name=constants.DeployerDefaults.LOGGER_NAME)
+  peeked_log_cfg = _peek_logging_config(config_file_path)
+  effective_log_file = log_file or peeked_log_cfg.get(
+      constants.ConfigKeys.LOG_FILE
+  )
+  effective_log_dir = (
+      log_dir
+      or peeked_log_cfg.get(constants.ConfigKeys.LOG_DIR)
+      or constants.DeployerDefaults.DEFAULT_LOG_DIR
+  )
+  effective_log_level = (
+      log_level
+      or peeked_log_cfg.get(constants.ConfigKeys.LOG_LEVEL)
+      or constants.DeployerDefaults.DEFAULT_CONSOLE_LOG_LEVEL
+  )
+
+  logger_mod.setup_logger(
+      logger_name=constants.DeployerDefaults.LOGGER_NAME,
+      level=effective_log_level,
+      log_file=effective_log_file,
+      log_dir=effective_log_dir,
+      file_level=constants.DeployerDefaults.DEFAULT_FILE_LOG_LEVEL,
+  )
   logger.info("=" * 70)
   logger.info("VCF Deployment Automation & Jumpbox Suite Initialized")
+  active_log_file = getattr(logger, "log_file_path", None)
+  if active_log_file:
+    logger.info("Jumpbox diagnostic log file: %s", active_log_file)
   logger.info("=" * 70)
 
   try:
@@ -414,9 +474,52 @@ def main() -> None:
           " profile."
       ),
   )
+  parser.add_argument(
+      "--log-file",
+      type=str,
+      default=None,
+      help=(
+          "Explicit file path for jumpbox diagnostic log output (overrides"
+          " --log-dir)."
+      ),
+  )
+  parser.add_argument(
+      "--log-dir",
+      type=str,
+      default=None,
+      help=(
+          "Directory path for timestamped jumpbox diagnostic log files"
+          f" (defaults to '{constants.DeployerDefaults.DEFAULT_LOG_DIR}')."
+      ),
+  )
+  parser.add_argument(
+      "--log-level",
+      type=str,
+      default=None,
+      choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+      help=(
+          "Console stream logging severity level (jumpbox log file always"
+          " captures DEBUG)."
+      ),
+  )
+  parser.add_argument(
+      "--debug",
+      action="store_true",
+      help="Enable DEBUG logging on the console stream.",
+  )
   args = parser.parse_args()
 
-  exit_code = run_pipeline(config_file_path=args.config)
+  kwargs: Dict[str, Any] = {"config_file_path": args.config}
+  if args.log_file is not None:
+    kwargs["log_file"] = args.log_file
+  if args.log_dir is not None:
+    kwargs["log_dir"] = args.log_dir
+  if args.debug:
+    kwargs["log_level"] = "DEBUG"
+  elif args.log_level is not None:
+    kwargs["log_level"] = args.log_level
+
+  exit_code = run_pipeline(**kwargs)
   sys.exit(exit_code)
 
 

@@ -77,6 +77,9 @@ class DeployerConfig:
   gce_nodes: Any
   esxi_root_password_secret: str
   vcf_deployment_config: Optional[VCFDeploymentConfig] = None
+  log_file: Optional[str] = None
+  log_dir: Optional[str] = None
+  log_level: Optional[str] = None
 
   @property
   def region(self) -> str:
