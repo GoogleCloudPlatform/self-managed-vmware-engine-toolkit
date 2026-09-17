@@ -15,6 +15,17 @@ from vcf_deployer import main as main_mod
 class TestMain(unittest.TestCase):
   """Tests for master orchestrator entry point, retry mechanics, and config loading."""
 
+  def setUp(self):
+    super().setUp()
+    self._temp_log_dir = tempfile.TemporaryDirectory()
+    self._orig_default_log_dir = constants.DeployerDefaults.DEFAULT_LOG_DIR
+    constants.DeployerDefaults.DEFAULT_LOG_DIR = self._temp_log_dir.name
+
+  def tearDown(self):
+    constants.DeployerDefaults.DEFAULT_LOG_DIR = self._orig_default_log_dir
+    self._temp_log_dir.cleanup()
+    super().tearDown()
+
   def test_retry_with_backoff_success_first_attempt(self):
     """Verifies immediate execution success without retrying."""
     mock_func = mock.MagicMock(return_value="success_result")
@@ -197,7 +208,7 @@ class TestMain(unittest.TestCase):
       fpath = os.path.join(examples_dir, fname)
       config = main_mod.load_config(fpath)
       self.assertIsNotNone(config)
-      self.assertEqual(config.project, "vmwareengine-bm-autopush-10")
+      self.assertEqual(config.project, "<YOUR_PROJECT_ID>")
       self.assertEqual(
           config.vcf_deployment_config.offline_depot_subnet_cidr,
           "10.2.100.0/29",
@@ -518,6 +529,83 @@ class TestMain(unittest.TestCase):
       main_mod.main()
     mock_run_pipe.assert_called_once_with(config_file_path="custom_config.json")
     mock_sys_exit.assert_called_once_with(0)
+
+  @mock.patch("sys.exit")
+  @mock.patch("vcf_deployer.main.run_pipeline")
+  def test_main_cli_logging_arguments(self, mock_run_pipe, mock_sys_exit):
+    """Verifies main() CLI parser passing --log-file, --log-dir, and --debug flags."""
+    mock_run_pipe.return_value = 0
+    with mock.patch.object(
+        sys,
+        "argv",
+        [
+            "main.py",
+            "--config",
+            "cfg.json",
+            "--log-file",
+            "/tmp/jumpbox.log",
+            "--log-dir",
+            "/tmp/logs",
+            "--debug",
+        ],
+    ):
+      main_mod.main()
+    mock_run_pipe.assert_called_once_with(
+        config_file_path="cfg.json",
+        log_file="/tmp/jumpbox.log",
+        log_dir="/tmp/logs",
+        log_level="DEBUG",
+    )
+    mock_sys_exit.assert_called_once_with(0)
+
+  @mock.patch("vcf_deployer.main.password_resetter.PasswordResetter")
+  @mock.patch("vcf_deployer.main.validator.PreDeploymentValidator")
+  @mock.patch("vcf_deployer.main.gcp_client.GCPClient")
+  def test_jumpbox_logging_creates_timestamped_file_with_debug_logs(
+      self, mock_gcp_cls, mock_val_cls, mock_pwd_cls
+  ):
+    """Verifies that run_pipeline dumps DEBUG and INFO logs to a timestamped file on jumpbox."""
+    data = {
+        "project": "p",
+        "zone": "us-central1-a",
+        "gce_nodes": ["node-1"],
+        "esxi_root_password_secret": "sec",
+    }
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
+      json.dump(data, tf)
+      cfg_path = tf.name
+
+    try:
+      mock_val = mock_val_cls.return_value
+      mock_val.validate_and_extract.return_value = models.ValidationContext(
+          esxi_nodes={"node-1": "10.0.0.1"},
+          new_esxi_root_password="pwd",
+      )
+      exit_code = main_mod.run_pipeline(
+          config_file_path=cfg_path,
+          log_dir=self._temp_log_dir.name,
+      )
+      self.assertEqual(exit_code, constants.ExitCode.SUCCESS)
+
+      created_logs = [
+          f
+          for f in os.listdir(self._temp_log_dir.name)
+          if f.startswith("vcf_deployer_") and f.endswith(".log")
+      ]
+      self.assertEqual(len(created_logs), 1)
+      log_path = os.path.join(self._temp_log_dir.name, created_logs[0])
+      with open(log_path, "r", encoding="utf-8") as lf:
+        log_contents = lf.read()
+      # Verify both INFO and DEBUG messages were captured in the jumpbox file
+      self.assertIn(
+          "VCF Deployment Automation & Jumpbox Suite Initialized", log_contents
+      )
+      self.assertIn("[DEBUG]", log_contents)
+      self.assertIn(
+          "Successfully loaded configuration profile", log_contents
+      )
+    finally:
+      os.remove(cfg_path)
 
 
 if __name__ == "__main__":
