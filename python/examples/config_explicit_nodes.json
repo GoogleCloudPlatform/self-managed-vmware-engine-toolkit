@@ -12,6 +12,11 @@
   ],
   // Secret Manager secret containing the ESXi root password
   "esxi_root_password_secret": "esxi-root-password",
+  // Optional Jumpbox logging configuration (defaults to ~/logs/vcf_deployer_<timestamp>.log).
+  // DEBUG level is default for file logs and console level can be controlled by "log_level" (defaults to INFO).
+  // "log_dir": "~/logs",
+  // "log_file": "~/logs/vcf_deployer_custom.log",
+  // "log_level": "INFO",
   // VCF deployment and initialization parameters
   "vcf_deployment_config": {
     // Target bare-metal node hosting the initial deployment workloads

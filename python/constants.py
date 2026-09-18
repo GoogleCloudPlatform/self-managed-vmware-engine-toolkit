@@ -28,6 +28,9 @@ class ConfigKeys:
   PREFIX = "prefix"
   SUBNET = "subnet"
   VCF_DEPLOYMENT_CONFIG = "vcf_deployment_config"
+  LOG_FILE = "log_file"
+  LOG_DIR = "log_dir"
+  LOG_LEVEL = "log_level"
 
   REQUIRED_KEYS: Tuple[str, ...] = (
       PROJECT,
@@ -78,6 +81,11 @@ class DeployerDefaults:
 
   LOGGER_NAME = "vcf_deployer"
   DEFAULT_CONFIG_FILE = "config.json"
+  DEFAULT_LOG_DIR = "~/logs"
+  DEFAULT_LOG_FILENAME_PREFIX = "vcf_deployer"
+  LOG_TIMESTAMP_FORMAT = "%Y%m%d_%H%M%S"
+  DEFAULT_CONSOLE_LOG_LEVEL = "INFO"
+  DEFAULT_FILE_LOG_LEVEL = "DEBUG"
   LOG_FORMAT = (
       "%(asctime)s [%(levelname)s] (%(filename)s:%(lineno)d) - %(message)s"
   )
