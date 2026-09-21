@@ -230,7 +230,7 @@ output "management_domain_deployment_input_config" {
     hostSpecs = [
       for name in module.hosts.node_names : {
         hostname      = name
-        sslThumbprint = ""
+        sslThumbprint = "<user_should_input>"
         credentials = {
           username = "root"
           password = "Default123!Default123!"
@@ -242,10 +242,7 @@ output "management_domain_deployment_input_config" {
       vcenterHostname       = "vc01.${local.domain}"
       vmSize                = "medium"
       storageSize           = "lstorage"
-      rootVcenterPassword   = ""
-      adminUserSsoPassword  = ""
       ssoDomain             = "gve.local"
-      version               = "<user_should_input>"
       useExistingDeployment = false
     }
 
@@ -303,9 +300,6 @@ output "management_domain_deployment_input_config" {
           hostname = "nsx04.${local.domain}"
         }
       ]
-      rootNsxtManagerPassword = "Default123!Default123!"
-      nsxtAdminPassword       = "Default123!Default123!"
-      nsxtAuditPassword       = "Default123!Default123!"
       transportVlanId         = var.nsx_tep_vlan_id
       nsxtManagerSize         = "medium"
       ipAddressPoolSpec = {
@@ -324,7 +318,6 @@ output "management_domain_deployment_input_config" {
           }
         ]
       }
-      version               = "<user_should_input>"
       useExistingDeployment = false
     }
 
@@ -341,7 +334,7 @@ output "management_domain_deployment_input_config" {
         ]
         teamingPolicy           = "loadbalance_loadbased"
         ipAddressVersion        = "IPv4"
-        ipAddressAssignmentMode = "STATIC"
+        standbyUplinks          = []
       },
       {
         networkType  = "VM_MANAGEMENT"
@@ -355,7 +348,7 @@ output "management_domain_deployment_input_config" {
         ]
         teamingPolicy           = "loadbalance_loadbased"
         ipAddressVersion        = "IPv4"
-        ipAddressAssignmentMode = "STATIC"
+        standbyUplinks          = []
       },
       {
         networkType = "VMOTION"
@@ -375,7 +368,7 @@ output "management_domain_deployment_input_config" {
         ]
         teamingPolicy           = "loadbalance_loadbased"
         ipAddressVersion        = "IPv4"
-        ipAddressAssignmentMode = "STATIC"
+        standbyUplinks          = []
       },
       {
         networkType = "VSAN"
@@ -395,18 +388,14 @@ output "management_domain_deployment_input_config" {
         ]
         teamingPolicy           = "loadbalance_loadbased"
         ipAddressVersion        = "IPv4"
-        ipAddressAssignmentMode = "STATIC"
+        standbyUplinks          = []
       }
     ]
 
     sddcManagerSpec = {
       hostname              = "sddcm.${local.domain}"
-      rootPassword          = "<user_should_input_secret_manager_vcf-root-password>"
-      sshPassword           = "<user_should_input_secret_manager_vcf-localuser-password>"
       localUserPassword     = "<user_should_input_secret_manager_vcf-localuser-password>"
-      version               = "<user_should_input>"
-      useExistingDeployment = false
-      sslThumbprint         = ""
+      useExistingDeployment = true
     }
 
     managementPoolName = "mgmt-domain-np01"
@@ -440,7 +429,6 @@ output "management_domain_deployment_input_config" {
       size                    = "medium"
       name                    = "vmsp-01"
       internalClusterCidrIpv4 = "198.18.0.0/15"
-      systemUserPassword      = "Default123!Default123!"
     }
 
     fleetLcmSpec = {
@@ -493,7 +481,7 @@ output "management_domain_deployment_input_config" {
         }
       ]
       applianceSize         = "medium"
-      adminUserPassword     = "Default123!Default123!"
+      loadBalancerFqdn      = ""
       useExistingDeployment = false
     }
 
@@ -501,7 +489,6 @@ output "management_domain_deployment_input_config" {
       applianceSize         = "standard"
       hostname              = "collector.${local.domain}"
       useExistingDeployment = false
-      rootUserPassword      = "Default123!Default123!"
     }
 
     licenseServerSpec = {

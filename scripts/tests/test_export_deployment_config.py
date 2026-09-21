@@ -166,6 +166,7 @@ class TestReorderObject(unittest.TestCase):
                     ],
                 },
                 "mtu": 9000,
+                "lagSpecs": None,
                 "nsxTeamings": [
                     {"activeUplinks": ["uplink1"], "policy": "FAILOVER_ORDER"}
                 ],
@@ -207,7 +208,7 @@ class TestReorderObject(unittest.TestCase):
     dvs = ordered["dvsSpecs"][0]
     self.assertEqual(
         list(dvs.keys()),
-        ["dvsName", "vmnicsToUplinks", "networks", "mtu", "nsxTeamings", "nsxtSwitchConfig"],
+        ["dvsName", "vmnicsToUplinks", "networks", "mtu", "nsxTeamings", "nsxtSwitchConfig", "lagSpecs"],
     )
     self.assertEqual(list(dvs["vmnicsToUplinks"][0].keys()), ["id", "uplink"])
     self.assertEqual(list(dvs["nsxTeamings"][0].keys()), ["policy", "activeUplinks"])
@@ -279,6 +280,7 @@ class TestReorderObject(unittest.TestCase):
         },
         "vcfOperationsSpec": {
             "useExistingDeployment": False,
+            "loadBalancerFqdn": "lb.test.local",
             "adminUserPassword": "pwd",
             "applianceSize": "medium",
             "nodes": [
@@ -329,7 +331,7 @@ class TestReorderObject(unittest.TestCase):
     ops = ordered["vcfOperationsSpec"]
     self.assertEqual(
         list(ops.keys()),
-        ["nodes", "applianceSize", "adminUserPassword", "useExistingDeployment"],
+        ["nodes", "applianceSize", "loadBalancerFqdn", "adminUserPassword", "useExistingDeployment"],
     )
     self.assertEqual(
         list(ops["nodes"][0].keys()), ["hostname", "rootUserPassword", "type"]
@@ -364,6 +366,8 @@ class TestReorderObject(unittest.TestCase):
         ],
         "networkSpecs": [
             {
+                "standbyUplinks": [],
+                "ipAddressVersion": "IPv4",
                 "gateway": "10.0.0.1",
                 "subnet": "10.0.0.0/24",
                 "networkType": "MANAGEMENT",
@@ -385,11 +389,108 @@ class TestReorderObject(unittest.TestCase):
 
     net = ordered["networkSpecs"][0]
     self.assertEqual(
-        list(net.keys())[:5],
-        ["networkType", "subnet", "gateway", "includeIpAddressRanges", "vlanId"],
+        list(net.keys())[:7],
+        [
+            "networkType",
+            "subnet",
+            "gateway",
+            "includeIpAddressRanges",
+            "vlanId",
+            "ipAddressVersion",
+            "standbyUplinks",
+        ],
     )
     ip_range = net["includeIpAddressRanges"][0]
     self.assertEqual(list(ip_range.keys()), ["startIpAddress", "endIpAddress"])
+
+  def test_reorder_updated_management_domain_deployment_config(self):
+    """Verifies canonical field ordering for updated outputs.tf schema without passwords."""
+    unordered = {
+        "sddcId": "mgmt-domain",
+        "version": "9.1.0",
+        "workflowType": "VCF",
+        "vcfInstanceName": "vcf1",
+        "ceipEnabled": False,
+        "vcenterSpec": {
+            "ssoDomain": "gve.local",
+            "useExistingDeployment": False,
+            "vcenterHostname": "vc01.test.gve",
+            "storageSize": "lstorage",
+            "vmSize": "medium",
+        },
+        "nsxtSpec": {
+            "nsxtManagerSize": "medium",
+            "useExistingDeployment": False,
+            "vipFqdn": "nsx01.test.gve",
+            "transportVlanId": 250,
+            "nsxtManagers": [{"hostname": "nsx02.test.gve"}],
+        },
+        "networkSpecs": [
+            {
+                "standbyUplinks": [],
+                "networkType": "MANAGEMENT",
+                "ipAddressVersion": "IPv4",
+                "teamingPolicy": "loadbalance_loadbased",
+                "subnet": "10.200.0.0/24",
+                "gateway": "10.200.0.1",
+                "vlanId": 0,
+                "portGroupKey": "mgmt-domain-cl01-vds01-pg-esx-mgmt",
+                "activeUplinks": ["uplink0"],
+            }
+        ],
+        "sddcManagerSpec": {
+            "useExistingDeployment": True,
+            "hostname": "sddcm.test.gve",
+            "localUserPassword": "<user_should_input_secret_manager_vcf-localuser-password>",
+        },
+        "vcfOperationsSpec": {
+            "useExistingDeployment": False,
+            "loadBalancerFqdn": "",
+            "applianceSize": "medium",
+            "nodes": [{"type": "master", "hostname": "ops01.test.gve"}],
+        },
+        "vcfOperationsCollectorSpec": {
+            "useExistingDeployment": False,
+            "hostname": "collector.test.gve",
+            "applianceSize": "standard",
+        },
+    }
+    ordered = export_deployment_config.reorder_object(unordered, "__root_mgmt__")
+
+    self.assertEqual(
+        list(ordered["vcenterSpec"].keys()),
+        ["vcenterHostname", "vmSize", "storageSize", "ssoDomain", "useExistingDeployment"],
+    )
+    self.assertEqual(
+        list(ordered["nsxtSpec"].keys()),
+        ["vipFqdn", "nsxtManagers", "transportVlanId", "nsxtManagerSize", "useExistingDeployment"],
+    )
+    self.assertEqual(
+        list(ordered["networkSpecs"][0].keys()),
+        [
+            "networkType",
+            "subnet",
+            "gateway",
+            "vlanId",
+            "portGroupKey",
+            "activeUplinks",
+            "teamingPolicy",
+            "ipAddressVersion",
+            "standbyUplinks",
+        ],
+    )
+    self.assertEqual(
+        list(ordered["sddcManagerSpec"].keys()),
+        ["hostname", "localUserPassword", "useExistingDeployment"],
+    )
+    self.assertEqual(
+        list(ordered["vcfOperationsSpec"].keys()),
+        ["nodes", "applianceSize", "loadBalancerFqdn", "useExistingDeployment"],
+    )
+    self.assertEqual(
+        list(ordered["vcfOperationsCollectorSpec"].keys()),
+        ["applianceSize", "hostname", "useExistingDeployment"],
+    )
 
   def test_reorder_vcf_deployment_config(self):
     """Verifies canonical field order for vcf_deployment_config in Python config."""

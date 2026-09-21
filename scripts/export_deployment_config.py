@@ -114,6 +114,7 @@ FIELD_ORDERS: Dict[str, List[str]] = {
         "mtu",
         "nsxTeamings",
         "nsxtSwitchConfig",
+        "lagSpecs",
     ],
     "vmnicsToUplinks": [
         "id",
@@ -181,6 +182,7 @@ FIELD_ORDERS: Dict[str, List[str]] = {
         "activeUplinks",
         "teamingPolicy",
         "ipAddressVersion",
+        "standbyUplinks",
         "ipAddressAssignmentMode",
     ],
     "includeIpAddressRanges": [
@@ -259,6 +261,7 @@ FIELD_ORDERS: Dict[str, List[str]] = {
     "vcfOperationsSpec": [
         "nodes",
         "applianceSize",
+        "loadBalancerFqdn",
         "adminUserPassword",
         "useExistingDeployment",
     ],
