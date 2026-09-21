@@ -60,18 +60,37 @@ locals {
   ]
   gcp_dns_reserved_ip = length(local.gcp_dns_reserved_ips) > 0 ? local.gcp_dns_reserved_ips[0] : null
 
-  # VSP IP range calculation
+  # VSP IP range calculation extracted dynamically from VSRT Forwarding Rule IPs
+  vsrt_fr_ips = [
+    for name, ip in module.appliances.management_forwarding_rule_ips : ip
+    if can(regex("vsrt", name)) && ip != null && ip != ""
+  ]
+
+  vsrt_ip_int_map = {
+    for ip in local.vsrt_fr_ips : (
+      parseint(split(".", ip)[0], 10) * 16777216 +
+      parseint(split(".", ip)[1], 10) * 65536 +
+      parseint(split(".", ip)[2], 10) * 256 +
+      parseint(split(".", ip)[3], 10)
+    ) => ip
+    if can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))
+  }
+
+  vsrt_ip_ints = [
+    for k, _ in local.vsrt_ip_int_map : parseint(k, 10)
+  ]
+
+  # Fallback to var.mgmt_ip_values if vsrt is specified directly as an IP range string ("start-end")
   vsrt_range_raw   = lookup(var.mgmt_ip_values, "vsrt", "")
   vsrt_range_parts = length(split("-", local.vsrt_range_raw)) == 2 ? split("-", local.vsrt_range_raw) : []
 
+  vsp_start_ip = length(local.vsrt_ip_ints) > 0 ? local.vsrt_ip_int_map[tostring(min(local.vsrt_ip_ints...))] : (
+    length(local.vsrt_range_parts) == 2 ? trimspace(local.vsrt_range_parts[0]) : null
+  )
 
-  vsp_start_ip = length(local.vsrt_range_parts) == 2 ? (
-    can(cidrhost("${local.vsrt_range_parts[0]}/24", 0)) && module.subnets.mgmt_subnet_cidr != null ? cidrhost(format("%s/%s", local.vsrt_range_parts[0], split("/", module.subnets.mgmt_subnet_cidr)[1]), tonumber(split(".", local.vsrt_range_parts[0])[3]) + 1) : local.vsrt_range_parts[0]
-  ) : (module.subnets.mgmt_subnet_cidr != null ? cidrhost(module.subnets.mgmt_subnet_cidr, 51) : null)
-
-
-  vsp_end_ip = length(local.vsrt_range_parts) == 2 ? local.vsrt_range_parts[1] : (
-    module.subnets.mgmt_subnet_cidr != null ? cidrhost(module.subnets.mgmt_subnet_cidr, 80) : null)
+  vsp_end_ip = length(local.vsrt_ip_ints) > 0 ? local.vsrt_ip_int_map[tostring(max(local.vsrt_ip_ints...))] : (
+    length(local.vsrt_range_parts) == 2 ? trimspace(local.vsrt_range_parts[1]) : null
+  )
 }
 
 # ==============================================================================
