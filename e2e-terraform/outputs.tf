@@ -241,8 +241,8 @@ output "management_domain_deployment_input_config" {
       vcenterHostname       = "vc01.${local.domain}"
       vmSize                = "medium"
       storageSize           = "lstorage"
-      rootVcenterPassword   = "Default123!Default123!"
-      adminUserSsoPassword  = "Default123!Default123!"
+      rootVcenterPassword   = ""
+      adminUserSsoPassword  = ""
       ssoDomain             = "gve.local"
       version               = "<user_should_input>"
       useExistingDeployment = false
@@ -400,9 +400,9 @@ output "management_domain_deployment_input_config" {
 
     sddcManagerSpec = {
       hostname              = "sddcm.${local.domain}"
-      rootPassword          = "Default123!Default123!"
-      sshPassword           = "Default123!Default123!"
-      localUserPassword     = "Default123!Default123!"
+      rootPassword          = "<user_should_input_secret_manager_vcf-root-password>"
+      sshPassword           = "<user_should_input_secret_manager_vcf-localuser-password>"
+      localUserPassword     = "<user_should_input_secret_manager_vcf-localuser-password>"
       version               = "<user_should_input>"
       useExistingDeployment = false
       sslThumbprint         = ""
