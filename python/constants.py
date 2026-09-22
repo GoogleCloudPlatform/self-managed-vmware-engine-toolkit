@@ -160,7 +160,7 @@ class ValidationRules:
 
   RFC1123_LABEL_PATTERN = r"^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$"
   VCF_VERSION_PATTERN = r"^\d+\.\d+\.\d+$"
-  ESXI_IMAGE_PATTERN = r"^(?:vmware-)?esxi-(\d+-\d+-\d+)-(.+)$"
+  ESXI_IMAGE_PATTERN = r"^(?:vmware-)?esxi-(\d{1,3}-\d{1,3}-\d{1,3}(?:-\d{1,3})?)-(.+)$"
   BUILD_NUMBER_PATTERN = r"^[0-9]+$"
   VCF_OVA_PREFIX_TEMPLATE = "VCF-SDDC-Manager-Appliance-{vcf_version}"
   HTML_OVA_HREF_PATTERN = r'href="([^"]+\.ova)"'

@@ -212,7 +212,7 @@ output "python_scripts_input_config" {
 
 output "management_domain_deployment_input_config" {
   value = {
-    version         = can(regex("esxi-([0-9a-zA-Z]+)-([0-9a-zA-Z]+)-([0-9a-zA-Z]+)", var.esxi_image)) ? join(".", regex("esxi-([0-9a-zA-Z]+)-([0-9a-zA-Z]+)-([0-9a-zA-Z]+)", var.esxi_image)) : "<user_should_input>"
+    version         = can(regex("esxi-([0-9a-zA-Z]{1,3})-([0-9a-zA-Z]{1,3})-([0-9a-zA-Z]{1,3})-([0-9a-zA-Z]{1,3})-", var.esxi_image)) ? join(".", regex("esxi-([0-9a-zA-Z]{1,3})-([0-9a-zA-Z]{1,3})-([0-9a-zA-Z]{1,3})-([0-9a-zA-Z]{1,3})-", var.esxi_image)) : (can(regex("esxi-([0-9a-zA-Z]{1,3})-([0-9a-zA-Z]{1,3})-([0-9a-zA-Z]{1,3})-", var.esxi_image)) ? "${join(".", regex("esxi-([0-9a-zA-Z]{1,3})-([0-9a-zA-Z]{1,3})-([0-9a-zA-Z]{1,3})-", var.esxi_image))}.0" : "<user_should_input>")
     vcfInstanceName = "vcf1"
     sddcId          = "mgmt-domain"
     ceipEnabled     = false

@@ -141,13 +141,15 @@ def audit_password(
 def parse_vcf_version_from_image(image_name: str) -> str:
   """Parses semantic VCF version from an ESXi boot disk image name string.
 
-  Expected format: esxi-x-x-x-xxxxxxx (e.g. esxi-5-1-1-23395914).
+  Expected format: esxi-x-x-x-x-xxxxxxx or esxi-x-x-x-xxxxxxx (e.g.
+  esxi-5-1-1-1-23395914 or esxi-5-1-1-23395914). Only the first three
+  version components are used for the VCF version and installer OVA.
 
   Args:
       image_name: Raw boot disk image or OS template string name.
 
   Returns:
-      Formatted semantic VCF version string (e.g., '5.1.1').
+      Formatted semantic VCF version string using first 3 digits (e.g., '5.1.1').
 
   Raises:
       models.ValidationError: If image syntax is invalid or non-numeric.
@@ -157,9 +159,13 @@ def parse_vcf_version_from_image(image_name: str) -> str:
   if not match:
     raise models.ValidationError(
         f"Invalid GCE image name '{image_name}': must match format"
-        " 'esxi-x-x-x-<anything>' or 'vmware-esxi-x-x-x-<anything>'."
+        " 'esxi-x-x-x-<anything>', 'esxi-x-x-x-x-<anything>',"
+        " 'vmware-esxi-x-x-x-<anything>', or"
+        " 'vmware-esxi-x-x-x-x-<anything>'."
     )
-  version = match.group(1).replace("-", ".")
+  raw_version = match.group(1)
+  parts = raw_version.split("-")
+  version = ".".join(parts[:3])
   if not VCF_VERSION_REGEX.match(version):
     raise models.ValidationError(
         f"Invalid VCF version '{version}' parsed from image '{image_name}'"

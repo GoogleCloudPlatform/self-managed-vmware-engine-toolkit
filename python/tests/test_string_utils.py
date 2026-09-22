@@ -122,6 +122,28 @@ class TestStringUtils(unittest.TestCase):
         ),
         "5.2.0",
     )
+    self.assertEqual(
+        string_utils.parse_vcf_version_from_image("esxi-5-1-1-1-23395914"),
+        "5.1.1",
+    )
+    self.assertEqual(
+        string_utils.parse_vcf_version_from_image(
+            "projects/p/global/images/vmware-esxi-9-1-0-0-123456"
+        ),
+        "9.1.0",
+    )
+    self.assertEqual(
+        string_utils.parse_vcf_version_from_image(
+            "projects/smve-prod-offline-depot/global/images/esxi-9-1-0-25557999-20260921"
+        ),
+        "9.1.0",
+    )
+    self.assertEqual(
+        string_utils.parse_vcf_version_from_image(
+            "projects/smve-prod-offline-depot/global/images/esxi-9-1-0-0-25557999-20260921"
+        ),
+        "9.1.0",
+    )
 
   def test_parse_vcf_version_from_image_invalid(self):
     """Verifies ValidationError when boot image name format is invalid."""
