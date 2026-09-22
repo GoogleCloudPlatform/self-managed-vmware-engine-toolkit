@@ -256,7 +256,7 @@ machine_type = "z3-highmem-192-highlssd-metal"
 # Description: Full resource URI of the ESXi OS boot disk image for bare-metal host instances.
 # Valid Values: Valid full ESXi image URI matching projects/<project>/global/images/<image-name>.
 # Default Value: None (Required)
-esxi_image = "projects/<YOUR_IMAGE_PROJECT_ID>/global/images/vmware-esxi-9-1-0-virtchnl-v20260803" # TODO(tulippandey) Change this once public qualified images are available
+esxi_image = "projects/smve-prod-offline-depot/global/images/esxi-9-1-0-25557999-20260921"
 
 # Description: Domain name matching the existing VCF Domain for consistent FQDN resolution and DNS record registration.
 # Valid Values: Non-empty domain string (e.g., "gcve-vcf.test.gve.", "vcf.corp.local.").
