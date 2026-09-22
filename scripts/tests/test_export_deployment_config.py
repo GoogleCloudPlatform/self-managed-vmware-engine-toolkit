@@ -116,6 +116,10 @@ class TestReorderObject(unittest.TestCase):
             "clusterName": "mgmt-cluster",
             "datacenterName": "dc1",
         },
+        "dnsSpec": {
+            "nameservers": ["10.0.0.1", "10.0.0.2"],
+            "subdomain": "example.com",
+        },
     }
     ordered = export_deployment_config.reorder_object(unordered, "__root_mgmt__")
 
@@ -150,6 +154,10 @@ class TestReorderObject(unittest.TestCase):
 
     cluster_keys = list(ordered["clusterSpec"].keys())
     self.assertEqual(cluster_keys, ["datacenterName", "clusterName"])
+
+    dns_keys = list(ordered["dnsSpec"].keys())
+    self.assertEqual(dns_keys, ["subdomain", "nameservers"])
+    self.assertEqual(ordered["dnsSpec"]["nameservers"], ["10.0.0.1", "10.0.0.2"])
 
   def test_reorder_network_and_nsxt_specs(self):
     """Verifies ordering for network, NSX-T, DVS, and IP pool specifications."""
@@ -454,9 +462,18 @@ class TestReorderObject(unittest.TestCase):
             "hostname": "collector.test.gve",
             "applianceSize": "standard",
         },
+        "dnsSpec": {
+            "nameservers": ["10.200.0.4"],
+            "subdomain": "gcve-vcf.test.gve",
+        },
     }
     ordered = export_deployment_config.reorder_object(unordered, "__root_mgmt__")
 
+    self.assertEqual(
+        list(ordered["dnsSpec"].keys()),
+        ["subdomain", "nameservers"],
+    )
+    self.assertEqual(ordered["dnsSpec"]["nameservers"], ["10.200.0.4"])
     self.assertEqual(
         list(ordered["vcenterSpec"].keys()),
         ["vcenterHostname", "vmSize", "storageSize", "ssoDomain", "useExistingDeployment"],
@@ -490,6 +507,20 @@ class TestReorderObject(unittest.TestCase):
     self.assertEqual(
         list(ordered["vcfOperationsCollectorSpec"].keys()),
         ["applianceSize", "hostname", "useExistingDeployment"],
+    )
+
+  def test_reorder_dns_spec(self):
+    """Verifies canonical field order for dnsSpec and preservation of nameservers list."""
+    unordered = {
+        "dnsSpec": {
+            "nameservers": ["10.200.0.4", "10.200.0.5"],
+            "subdomain": "gcve-vcf.test.gve",
+        }
+    }
+    ordered = export_deployment_config.reorder_object(unordered, "__root_mgmt__")
+    self.assertEqual(list(ordered["dnsSpec"].keys()), ["subdomain", "nameservers"])
+    self.assertEqual(
+        ordered["dnsSpec"]["nameservers"], ["10.200.0.4", "10.200.0.5"]
     )
 
   def test_reorder_vcf_deployment_config(self):
