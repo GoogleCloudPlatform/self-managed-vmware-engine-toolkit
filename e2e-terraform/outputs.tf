@@ -220,7 +220,9 @@ output "management_domain_deployment_input_config" {
 
     dnsSpec = {
       subdomain   = local.domain
-      nameservers = var.setup_cloud_dns ? local.gcp_dns_reserved_ip : "<user_should_input>"
+      nameservers = [
+        var.setup_cloud_dns ? local.gcp_dns_reserved_ip : "<user_should_input>"
+      ]
     }
 
     ntpServers = [
