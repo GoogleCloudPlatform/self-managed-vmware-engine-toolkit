@@ -1205,6 +1205,48 @@ class TestMainWorkflow(unittest.TestCase):
         self.assertEqual(ret, 0)
         mock_load.assert_called_once_with("-")
 
+  def test_reorder_network_specs_include_ip_address(self):
+    """Verifies that includeIpAddress in networkSpecs is ordered after gateway and before vlanId."""
+    unordered = {
+        "networkSpecs": [
+            {
+                "standbyUplinks": [],
+                "vlanId": 200,
+                "mtu": 8700,
+                "includeIpAddress": ["10.200.2.3", "10.200.2.4", "10.200.2.5"],
+                "activeUplinks": ["uplink0"],
+                "ipAddressVersion": "IPv4",
+                "teamingPolicy": "loadbalance_loadbased",
+                "gateway": "10.200.2.1",
+                "subnet": "10.200.2.0/24",
+                "portGroupKey": "mgmt-domain-cl01-vds01-pg-vmotion",
+                "networkType": "VMOTION",
+            }
+        ]
+    }
+    ordered = export_deployment_config.reorder_object(unordered, "__root_mgmt__")
+    net = ordered["networkSpecs"][0]
+    self.assertEqual(
+        list(net.keys()),
+        [
+            "networkType",
+            "subnet",
+            "gateway",
+            "includeIpAddress",
+            "vlanId",
+            "mtu",
+            "portGroupKey",
+            "activeUplinks",
+            "teamingPolicy",
+            "ipAddressVersion",
+            "standbyUplinks",
+        ],
+    )
+    self.assertEqual(
+        net["includeIpAddress"],
+        ["10.200.2.3", "10.200.2.4", "10.200.2.5"],
+    )
+
 
 if __name__ == "__main__":
   unittest.main()

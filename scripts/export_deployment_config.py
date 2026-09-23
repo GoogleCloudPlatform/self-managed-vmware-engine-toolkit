@@ -175,6 +175,7 @@ FIELD_ORDERS: Dict[str, List[str]] = {
         "networkType",
         "subnet",
         "gateway",
+        "includeIpAddress",
         "includeIpAddressRanges",
         "vlanId",
         "mtu",

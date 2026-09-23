@@ -91,6 +91,81 @@ locals {
   vsp_end_ip = length(local.vsrt_ip_ints) > 0 ? local.vsrt_ip_int_map[tostring(max(local.vsrt_ip_ints...))] : (
     length(local.vsrt_range_parts) == 2 ? trimspace(local.vsrt_range_parts[1]) : null
   )
+
+  # Numerically sorted vMotion IP addresses for bare-metal ESXi hosts
+  valid_vmotion_ips = [
+    for ip in module.hosts.node_vmotion_ips : ip
+    if ip != null && ip != "" && can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))
+  ]
+  sorted_vmotion_ips = [
+    for k in sort([
+      for ip in local.valid_vmotion_ips :
+      format("%03d.%03d.%03d.%03d", [for o in split(".", ip) : parseint(o, 10)]...)
+    ]) :
+    join(".", [for o in split(".", k) : tostring(parseint(o, 10))])
+  ]
+
+  # Numerically sorted vSAN IP addresses for bare-metal ESXi hosts
+  valid_vsan_ips = [
+    for ip in module.hosts.node_vsan_ips : ip
+    if ip != null && ip != "" && can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))
+  ]
+  sorted_vsan_ips = [
+    for k in sort([
+      for ip in local.valid_vsan_ips :
+      format("%03d.%03d.%03d.%03d", [for o in split(".", ip) : parseint(o, 10)]...)
+    ]) :
+    join(".", [for o in split(".", k) : tostring(parseint(o, 10))])
+  ]
+
+  # Numerically sorted NSX TEP IP addresses for bare-metal ESXi hosts
+  valid_nsx_tep_ips = [
+    for ip in module.hosts.node_nsx_tep_ips : ip
+    if ip != null && ip != "" && can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))
+  ]
+  sorted_nsx_tep_ips = [
+    for k in sort([
+      for ip in local.valid_nsx_tep_ips :
+      format("%03d.%03d.%03d.%03d", [for o in split(".", ip) : parseint(o, 10)]...)
+    ]) :
+    join(".", [for o in split(".", k) : tostring(parseint(o, 10))])
+  ]
+
+  # NSX TEP IP Pool Range: start is lowest IP assigned to host NSX NICs, end is start + 2 * number of nodes
+  nsx_tep_pool_start_ip = length(local.sorted_nsx_tep_ips) > 0 ? local.sorted_nsx_tep_ips[0] : null
+  nsx_tep_num_nodes     = length(module.hosts.node_names)
+  nsx_tep_pool_start_int = try(
+    sum([for i, o in split(".", local.nsx_tep_pool_start_ip) : parseint(o, 10) * pow(256, 3 - i)]),
+    null
+  )
+  nsx_tep_pool_end_int = local.nsx_tep_pool_start_int != null ? local.nsx_tep_pool_start_int + 2 * local.nsx_tep_num_nodes : null
+  nsx_tep_pool_end_ip = local.nsx_tep_pool_end_int != null ? format(
+    "%d.%d.%d.%d",
+    floor(local.nsx_tep_pool_end_int / 16777216) % 256,
+    floor(local.nsx_tep_pool_end_int / 65536) % 256,
+    floor(local.nsx_tep_pool_end_int / 256) % 256,
+    local.nsx_tep_pool_end_int % 256
+  ) : null
+
+  # Host specifications ordered by their vMotion IP addresses
+  host_specs_by_vmotion_ip = {
+    for idx, name in module.hosts.node_names :
+    (
+      length(module.hosts.node_vmotion_ips) > idx && can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", module.hosts.node_vmotion_ips[idx]))
+      ? format("%03d.%03d.%03d.%03d", [for o in split(".", module.hosts.node_vmotion_ips[idx]) : parseint(o, 10)]...)
+      : format("999.999.999.999-%04d", idx)
+    ) => {
+      hostname      = name
+      sslThumbprint = "<user_should_input>"
+      credentials = {
+        username = "root"
+        password = "Default123!Default123!"
+      }
+    }
+  }
+  sorted_host_specs = [
+    for k in sort(keys(local.host_specs_by_vmotion_ip)) : local.host_specs_by_vmotion_ip[k]
+  ]
 }
 
 # ==============================================================================
@@ -228,16 +303,7 @@ output "management_domain_deployment_input_config" {
       "ntp.${local.domain}"
     ]
 
-    hostSpecs = [
-      for name in module.hosts.node_names : {
-        hostname      = name
-        sslThumbprint = "<user_should_input>"
-        credentials = {
-          username = "root"
-          password = "Default123!Default123!"
-        }
-      }
-    ]
+    hostSpecs = local.sorted_host_specs
 
     vcenterSpec = {
       vcenterHostname       = "vc01.${local.domain}"
@@ -312,8 +378,8 @@ output "management_domain_deployment_input_config" {
             gateway = module.subnets.nsx_tep_subnet_cidr != null ? cidrhost(module.subnets.nsx_tep_subnet_cidr, 1) : null
             ipAddressPoolRanges = [
               {
-                start = module.subnets.nsx_tep_subnet_cidr != null ? cidrhost(module.subnets.nsx_tep_subnet_cidr, 3) : null
-                end   = module.subnets.nsx_tep_subnet_cidr != null ? cidrhost(module.subnets.nsx_tep_subnet_cidr, 100) : null
+                start = local.nsx_tep_pool_start_ip
+                end   = local.nsx_tep_pool_end_ip
               }
             ]
           }
@@ -352,44 +418,34 @@ output "management_domain_deployment_input_config" {
         standbyUplinks          = []
       },
       {
-        networkType = "VMOTION"
-        subnet      = module.subnets.vmotion_subnet_cidr
-        gateway     = module.subnets.vmotion_subnet_cidr != null ? cidrhost(module.subnets.vmotion_subnet_cidr, 1) : null
-        includeIpAddressRanges = [
-          {
-            startIpAddress = module.subnets.vmotion_subnet_cidr != null ? cidrhost(module.subnets.vmotion_subnet_cidr, 3) : null
-            endIpAddress   = module.subnets.vmotion_subnet_cidr != null ? cidrhost(module.subnets.vmotion_subnet_cidr, 100) : null
-          }
-        ]
-        vlanId       = var.vmotion_vlan_id
-        mtu          = 8700
-        portGroupKey = "mgmt-domain-cl01-vds01-pg-vmotion"
+        networkType      = "VMOTION"
+        subnet           = module.subnets.vmotion_subnet_cidr
+        gateway          = module.subnets.vmotion_subnet_cidr != null ? cidrhost(module.subnets.vmotion_subnet_cidr, 1) : null
+        includeIpAddress = local.sorted_vmotion_ips
+        vlanId           = var.vmotion_vlan_id
+        mtu              = 8700
+        portGroupKey     = "mgmt-domain-cl01-vds01-pg-vmotion"
         activeUplinks = [
           "uplink0"
         ]
-        teamingPolicy           = "loadbalance_loadbased"
-        ipAddressVersion        = "IPv4"
-        standbyUplinks          = []
+        teamingPolicy    = "loadbalance_loadbased"
+        ipAddressVersion = "IPv4"
+        standbyUplinks   = []
       },
       {
-        networkType = "VSAN"
-        subnet      = module.subnets.vsan_subnet_cidr
-        gateway     = module.subnets.vsan_subnet_cidr != null ? cidrhost(module.subnets.vsan_subnet_cidr, 1) : null
-        includeIpAddressRanges = [
-          {
-            startIpAddress = module.subnets.vsan_subnet_cidr != null ? cidrhost(module.subnets.vsan_subnet_cidr, 3) : null
-            endIpAddress   = module.subnets.vsan_subnet_cidr != null ? cidrhost(module.subnets.vsan_subnet_cidr, 100) : null
-          }
-        ]
-        vlanId       = var.vsan_vlan_id
-        mtu          = 8700
-        portGroupKey = "mgmt-domain-cl01-vds01-pg-vsan"
+        networkType      = "VSAN"
+        subnet           = module.subnets.vsan_subnet_cidr
+        gateway          = module.subnets.vsan_subnet_cidr != null ? cidrhost(module.subnets.vsan_subnet_cidr, 1) : null
+        includeIpAddress = local.sorted_vsan_ips
+        vlanId           = var.vsan_vlan_id
+        mtu              = 8700
+        portGroupKey     = "mgmt-domain-cl01-vds01-pg-vsan"
         activeUplinks = [
           "uplink0"
         ]
-        teamingPolicy           = "loadbalance_loadbased"
-        ipAddressVersion        = "IPv4"
-        standbyUplinks          = []
+        teamingPolicy    = "loadbalance_loadbased"
+        ipAddressVersion = "IPv4"
+        standbyUplinks   = []
       }
     ]
 
