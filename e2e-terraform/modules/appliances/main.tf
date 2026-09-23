@@ -208,6 +208,7 @@ resource "google_compute_region_backend_service" "mgmt_backends" {
   lifecycle {
     ignore_changes = [
       ha_policy[0].leader[0].network_endpoint[0].instance,
+      description,
     ]
   }
 }
@@ -262,6 +263,7 @@ resource "google_compute_region_backend_service" "nsx_backends" {
   lifecycle {
     ignore_changes = [
       ha_policy[0].leader[0].network_endpoint[0].instance,
+      description,
     ]
   }
 }
@@ -305,6 +307,9 @@ resource "google_dns_record_set" "ntp_forward_a_record" {
   type         = "A"
   ttl          = var.dns_ttl
   rrdatas      = [var.ntp_ip]
+  lifecycle {
+    ignore_changes = [rrdatas]
+  }
 }
 
 resource "google_dns_record_set" "appliance_reverse_ptr_records" {

@@ -398,15 +398,15 @@ nsx_tep_ip_values = ["10.200.3.3", "10.200.3.4", "10.200.3.5", "10.200.3.6"]
 # Description: List of customer-defined dynamic VLAN interfaces to attach to bare-metal compute instances.
 # Valid Values: List of objects containing name (string), subnet_name (string), vlan_id (integer 2-255), ip_address_type (string), and ip_values (list of strings).
 # Default Value: [] (Optional)
-additional_dynamic_nics = [
-  {
-    name            = "additional-nic-1"
-    subnet_name     = "vcf-mgmt-sample-additional-subnet-1"
-    vlan_id         = 210
-    ip_address_type = "reserved_custom"
-    ip_values       = ["10.200.4.3", "10.200.4.4", "10.200.4.5", "10.200.4.6"]
-  }
-]
+# additional_dynamic_nics = [
+#   {
+#     name            = "additional-nic-1"
+#     subnet_name     = "vcf-mgmt-sample-additional-subnet-1"
+#     vlan_id         = 210
+#     ip_address_type = "reserved_custom"
+#     ip_values       = ["10.200.4.3", "10.200.4.4", "10.200.4.5", "10.200.4.6"]
+#   }
+# ]
 
 
 # ==============================================================================

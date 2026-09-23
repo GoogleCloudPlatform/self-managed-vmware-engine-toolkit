@@ -212,6 +212,10 @@ resource "google_compute_disk" "boot_disks" {
     type = "MULTI_IP_SUBNET"
   }
 
+  guest_os_features {
+    type = "UEFI_COMPATIBLE"
+  }
+
   labels = {
     gcve-node = "true"
   }
@@ -233,7 +237,10 @@ resource "google_compute_instance" "nodes" {
   tags = ["mm-gcve-node"]
 
   lifecycle {
-    ignore_changes = [scratch_disk]
+    ignore_changes = [
+      scratch_disk,
+      network_interface,
+    ]
   }
 
   boot_disk {
