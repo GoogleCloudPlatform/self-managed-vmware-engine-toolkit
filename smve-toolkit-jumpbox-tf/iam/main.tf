@@ -64,13 +64,11 @@ resource "google_project_iam_member" "terraform_runner_roles" {
 # IAM Bindings for Jumpbox SSH User Identity
 # Roles granted:
 #   - roles/iap.tunnelResourceAccessor
-#   - roles/compute.osLogin
 #   - roles/compute.viewer
 # ------------------------------------------------------------------------------
 resource "google_project_iam_member" "jumpbox_ssh_user_roles" {
   for_each = toset([
     "roles/iap.tunnelResourceAccessor",
-    "roles/compute.osLogin",
     "roles/compute.viewer"
   ])
 

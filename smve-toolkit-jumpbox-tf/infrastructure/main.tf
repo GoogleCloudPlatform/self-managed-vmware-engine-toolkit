@@ -69,7 +69,7 @@ module "network" {
 # ------------------------------------------------------------------------------
 # Module 2: Jumpbox Instance Provisioning
 # Creates a compute engine instance without a public IP, attached to the
-# designated Service Account, and configured with OS Login for secure IAP SSH access.
+# designated Service Account, and reachable via IAP SSH tunneling.
 # ------------------------------------------------------------------------------
 module "jumpbox" {
   source = "./modules/jumpbox"
