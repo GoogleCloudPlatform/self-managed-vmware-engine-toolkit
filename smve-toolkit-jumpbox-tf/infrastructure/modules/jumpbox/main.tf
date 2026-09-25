@@ -15,7 +15,7 @@
 # ==============================================================================
 # File: infrastructure/modules/jumpbox/main.tf
 # Description: Provisions the Jumpbox GCE instance without a public IP,
-#              attached to the designated Service Account, with OS Login enabled.
+#              attached to the designated Service Account.
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -77,11 +77,6 @@ resource "google_compute_instance" "jumpbox" {
 
     # Omitting `access_config` ensures that NO public IP is assigned to the VM.
     # Access is strictly controlled via Google Cloud IAP Tunneling.
-  }
-
-  # Metadata Configuration: Enables OS Login for IAM-authenticated SSH access
-  metadata = {
-    enable-oslogin = "TRUE"
   }
 
   # Service Account Attachment (Configured Service Account)
