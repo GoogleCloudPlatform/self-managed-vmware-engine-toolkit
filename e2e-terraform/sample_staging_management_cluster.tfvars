@@ -251,12 +251,12 @@ nsx_neg_name = "vcf-mgmt-sample-nsx-neg"
 # Description: List of customer-defined dynamic L2 broadcast subnets to create or reference. Each element specifies subnet_name and optional subnet_cidr. Names must match additional_dynamic_nics.
 # Valid Values: List of objects with subnet_name (string) and subnet_cidr (IPv4 CIDR string if create_subnets_and_negs = true or null if create_subnets_and_negs = false).
 # Default Value: [] (Optional)
-additional_dynamic_subnets = [
-  {
-    subnet_name = "vcf-mgmt-sample-additional-subnet-1"
-    subnet_cidr = "10.250.4.0/24"
-  }
-]
+# additional_dynamic_subnets = [
+#   {
+#     subnet_name = "vcf-mgmt-sample-additional-subnet-1"
+#     subnet_cidr = "10.250.4.0/24"
+#   }
+# ]
 
 
 # ==============================================================================
@@ -413,15 +413,15 @@ nsx_tep_ip_values = ["10.250.3.3", "10.250.3.4", "10.250.3.5", "10.250.3.6"]
 # Description: List of customer-defined dynamic VLAN interfaces to attach to bare-metal compute instances.
 # Valid Values: List of objects containing name (string), subnet_name (string), vlan_id (integer 2-255), ip_address_type (string), and ip_values (list of strings).
 # Default Value: [] (Optional)
-additional_dynamic_nics = [
-  {
-    name            = "additional-nic-1"
-    subnet_name     = "vcf-mgmt-sample-additional-subnet-1"
-    vlan_id         = 210
-    ip_address_type = "reserved_custom"
-    ip_values       = ["10.250.4.3", "10.250.4.4", "10.250.4.5", "10.250.4.6"]
-  }
-]
+# additional_dynamic_nics = [
+#   {
+#     name            = "additional-nic-1"
+#     subnet_name     = "vcf-mgmt-sample-additional-subnet-1"
+#     vlan_id         = 210
+#     ip_address_type = "reserved_custom"
+#     ip_values       = ["10.250.4.3", "10.250.4.4", "10.250.4.5", "10.250.4.6"]
+#   }
+# ]
 
 
 # ==============================================================================

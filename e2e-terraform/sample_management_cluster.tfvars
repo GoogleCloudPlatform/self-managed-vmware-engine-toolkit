@@ -251,12 +251,12 @@ nsx_neg_name = "vcf-mgmt-sample-nsx-neg"
 # Description: List of customer-defined dynamic L2 broadcast subnets to create or reference. Each element specifies subnet_name and optional subnet_cidr. Names must match additional_dynamic_nics.
 # Valid Values: List of objects with subnet_name (string) and subnet_cidr (IPv4 CIDR string if create_subnets_and_negs = true or null if create_subnets_and_negs = false).
 # Default Value: [] (Optional)
-additional_dynamic_subnets = [
-  {
-    subnet_name = "vcf-mgmt-sample-additional-subnet-1"
-    subnet_cidr = "10.200.4.0/24"
-  }
-]
+# additional_dynamic_subnets = [
+#   {
+#     subnet_name = "vcf-mgmt-sample-additional-subnet-1"
+#     subnet_cidr = "10.200.4.0/24"
+#   }
+# ]
 
 
 # ==============================================================================
