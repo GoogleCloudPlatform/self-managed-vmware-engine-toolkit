@@ -25,6 +25,7 @@
 #        * If `availability_domains` was explicitly specified as a list, append the availability domain assignment for the new node(s) (e.g., 5).
 #          NOTE: If `availability_domains` was not specified (left null/unspecified), it should NOT be changed during Day-2 operations.
 #        * For network interfaces using custom IP modes ("reserved_custom" or "ephemeral_custom"), append the IP address(es) for the new node(s) to `mgmt_nic_ip_values`, `vsan_ip_values`, `vmotion_ip_values`, `nsx_tep_ip_values`, and dynamic NIC `ip_values`.
+#          NOTE: New IPs must not be reserved or repeated, and must skip the subnet's DNS reserved IP (see IP ADDRESS INPUT GUIDELINES below).
 #          NOTE: If automatic IP modes ("ephemeral_automatic" or "reserved_automatic") were used and IP values lists were left empty/unspecified, they should NOT be changed during Day-2 operations.
 #    - Run `terraform apply`.
 #    - After Terraform apply finishes, execute the generated `gcloud` NEG attachment commands printed in the Terraform outputs (`neg_attachment_commands`) to attach the new node interfaces to their zonal NEGs.
@@ -47,7 +48,24 @@
 # 4. Day-2 Appliance Addition:
 #    - Set `deployment_mode = "appliance_addition"`.
 #    - In Section 5, add the new appliance name(s) and static IP address(es) to `mgmt_ip_values` (for Management ILB forwarding rules) and/or `nsx_ip_values` (for NSX Datapath ILB forwarding rules). Example: `"vcf-one-more-appliance" = "10.200.0.28"` OR `"vcf-one-more-appliance" = ""` if your address type is ephemeral/reserved automatic.
+#      NOTE: New IPs must not be reserved or repeated, and must skip the subnet's DNS reserved IP (see IP ADDRESS INPUT GUIDELINES below).
 #    - Run `terraform apply`. Terraform will provision the new ILB forwarding rules, IP reservations, and Cloud DNS A/PTR records without modifying existing compute nodes.
+#
+# IP ADDRESS INPUT GUIDELINES (apply to EVERY IP-related input in this file):
+# ------------------------------------------------------------------------------
+#    - Do NOT input reserved or repeated IP addresses. Every IP address specified in this file (`ntp_ip`,
+#      `mgmt_nic_ip_values`, `vsan_ip_values`, `vmotion_ip_values`, `nsx_tep_ip_values`, dynamic NIC `ip_values`,
+#      `mgmt_ip_values` and `nsx_ip_values`, including every IP expanded from an IP range string) must be unique
+#      across all inputs and must not already be in use or reserved in the subnetwork.
+#    - GCP reserves the network address, the default gateway (e.g., "10.200.0.1" in "10.200.0.0/24"), the second-to-last
+#      address and the broadcast address of every subnet primary range. These must not be used.
+#    - For a VPC having a Cloud DNS inbound server policy (see `dns_policy_name`), one IP address in EVERY subnet
+#      of the VPC is reserved for the DNS inbound forwarder:
+#        * Subnets created in the scope of this Terraform: the DNS reserved IP is the first available IP of the
+#          subnet CIDR (e.g., "10.200.0.2" in "10.200.0.0/24"). It MUST be skipped.
+#        * Existing subnets (referenced, not created by this Terraform): the DNS reserved IP is already present in
+#          the GCP IP Addresses resources (VPC network > IP addresses, or
+#          `gcloud compute addresses list --filter="purpose=DNS_RESOLVER"`). Check it and do NOT use it.
 # ==============================================================================
 
 # ==============================================================================
@@ -164,7 +182,7 @@ dns_ttl = 300
 dns_policy_name = "vcf-mgmt-sample-dns-policy"
 
 # Description: IP address for the NTP server forward DNS A record. If setup_cloud_dns is true and ntp_ip is provided, a forward DNS A record (ntp.<domain_name>) pointing to this IP is created. This field should only be specified for management clusters.
-# Valid Values: Valid IPv4 address string or null.
+# Valid Values: Valid IPv4 address string or null. Do NOT input reserved or repeated IPs, including the subnet's DNS reserved IP (see IP ADDRESS INPUT GUIDELINES at the top of this file).
 # Default Value: null (Optional)
 ntp_ip = "10.200.0.30"
 
@@ -334,6 +352,8 @@ availability_domains = [1, 2, 3, 4]
 #                            valid non-conflicting IPv4 addresses within the subnetwork CIDR.
 #   4. "ephemeral_automatic": Dynamic DHCP ephemeral IP addresses automatically assigned by GCP.
 #                            The corresponding `*_ip_values` list should be left empty (`[]`).
+#   NOTE: For custom modes, do NOT input reserved or repeated IPs, and skip the DNS reserved IP of each subnet
+#         (see IP ADDRESS INPUT GUIDELINES at the top of this file).
 # ------------------------------------------------------------------------------
 
 # ------------------------------------------------------------------------------
@@ -346,7 +366,7 @@ availability_domains = [1, 2, 3, 4]
 mgmt_nic_ip_address_type = "reserved_custom"
 
 # Description: List of explicit IP addresses for Management NICs. Required when mgmt_nic_ip_address_type is "reserved_custom" or "ephemeral_custom" (must contain number_of_nodes entries). Leave empty ([]) for "reserved_automatic" or "ephemeral_automatic".
-# Valid Values: List of valid non-conflicting IPv4 address strings in mgmt_subnet_cidr (e.g., ["10.200.0.3", "10.200.0.4", "10.200.0.5"]).
+# Valid Values: List of valid non-conflicting IPv4 address strings in mgmt_subnet_cidr (e.g., ["10.200.0.3", "10.200.0.4", "10.200.0.5"]). Do NOT input reserved or repeated IPs, including the subnet's DNS reserved IP (see IP ADDRESS INPUT GUIDELINES at the top of this file).
 # Default Value: [] (Conditional)
 mgmt_nic_ip_values = ["10.200.0.3", "10.200.0.4", "10.200.0.5", "10.200.0.6"]
 
@@ -365,7 +385,7 @@ vmotion_vlan_id = 2
 vmotion_ip_address_type = "reserved_custom"
 
 # Description: List of explicit IP addresses for vMotion NICs. Required when vmotion_ip_address_type is "reserved_custom" or "ephemeral_custom" (must contain number_of_nodes entries). Leave empty ([]) for "reserved_automatic" or "ephemeral_automatic".
-# Valid Values: List of valid IPv4 address strings in vmotion_subnet_cidr.
+# Valid Values: List of valid IPv4 address strings in vmotion_subnet_cidr. Do NOT input reserved or repeated IPs, including the subnet's DNS reserved IP (see IP ADDRESS INPUT GUIDELINES at the top of this file).
 # Default Value: [] (Conditional)
 vmotion_ip_values = ["10.200.2.3", "10.200.2.4", "10.200.2.5", "10.200.2.6"]
 
@@ -384,7 +404,7 @@ vsan_vlan_id = 3
 vsan_ip_address_type = "reserved_custom"
 
 # Description: List of explicit IP addresses for vSAN NICs. Required when vsan_ip_address_type is "reserved_custom" or "ephemeral_custom" (must contain number_of_nodes entries). Leave empty ([]) for "reserved_automatic" or "ephemeral_automatic".
-# Valid Values: List of valid non-conflicting IPv4 address strings in vsan_subnet_cidr.
+# Valid Values: List of valid non-conflicting IPv4 address strings in vsan_subnet_cidr. Do NOT input reserved or repeated IPs, including the subnet's DNS reserved IP (see IP ADDRESS INPUT GUIDELINES at the top of this file).
 # Default Value: [] (Conditional)
 vsan_ip_values = ["10.200.1.3", "10.200.1.4", "10.200.1.5", "10.200.1.6"]
 
@@ -403,7 +423,7 @@ nsx_tep_vlan_id = 4
 nsx_tep_ip_address_type = "reserved_custom"
 
 # Description: List of explicit IP addresses for NSX TEP NICs. Required when nsx_tep_ip_address_type is "reserved_custom" or "ephemeral_custom" (must contain number_of_nodes entries). Leave empty ([]) for "reserved_automatic" or "ephemeral_automatic".
-# Valid Values: List of valid IPv4 address strings in nsx_tep_subnet_cidr.
+# Valid Values: List of valid IPv4 address strings in nsx_tep_subnet_cidr. Do NOT input reserved or repeated IPs, including the subnet's DNS reserved IP (see IP ADDRESS INPUT GUIDELINES at the top of this file).
 # Default Value: [] (Conditional)
 nsx_tep_ip_values = ["10.200.3.3", "10.200.3.4", "10.200.3.5", "10.200.3.6"]
 
@@ -412,7 +432,7 @@ nsx_tep_ip_values = ["10.200.3.3", "10.200.3.4", "10.200.3.5", "10.200.3.6"]
 # ------------------------------------------------------------------------------
 
 # Description: List of customer-defined dynamic VLAN interfaces to attach to bare-metal compute instances.
-# Valid Values: List of objects containing name (string), subnet_name (string), vlan_id (integer 2-255), ip_address_type (string), and ip_values (list of strings).
+# Valid Values: List of objects containing name (string), subnet_name (string), vlan_id (integer 2-255), ip_address_type (string), and ip_values (list of strings). IPs in ip_values must follow the same rules. Do NOT input reserved or repeated IPs, including the subnet's DNS reserved IP (see IP ADDRESS INPUT GUIDELINES at the top of this file).
 # Default Value: [] (Optional)
 # additional_dynamic_nics = [
 #   {
@@ -436,6 +456,8 @@ nsx_tep_ip_values = ["10.200.3.3", "10.200.3.4", "10.200.3.5", "10.200.3.6"]
 #     to empty string values "" (e.g., { "vc01" = "", "collector" = "" }), or a positive integer count string
 #     (e.g., { "auto-node" = "6" }) allowing GCP to automatically allocate IP addresses from the subnetwork CIDR while creating the required forwarding rules.
 #   - If no appliances of that type are required, provide an empty map `{}`.
+#   - NOTE: For custom modes, do NOT input reserved or repeated IPs (across both maps and all NIC IP lists),
+#     and skip the DNS reserved IP of each subnet (see IP ADDRESS INPUT GUIDELINES at the top of this file).
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -448,7 +470,7 @@ nsx_tep_ip_values = ["10.200.3.3", "10.200.3.4", "10.200.3.5", "10.200.3.6"]
 mgmt_ip_address_type = "reserved_custom"
 
 # Description: Map of management appliance names to IP values in mgmt_subnet_cidr. Supported formats: explicit IPv4 string (for custom modes), IPv4 range string 'start_ip-end_ip' (for custom range allocation), positive integer count string (for automatic N-node pool allocation), or empty string "" (for single automatic allocation). Forwarding rules and DNS A/PTR records are created for each entry.
-# Valid Values: Map of string appliance names to valid IPv4 address strings, IP range strings, integer count strings, or empty strings ("") within mgmt_subnet_cidr.
+# Valid Values: Map of string appliance names to valid IPv4 address strings, IP range strings, integer count strings, or empty strings ("") within mgmt_subnet_cidr. Do NOT input reserved or repeated IPs, including the subnet's DNS reserved IP (see IP ADDRESS INPUT GUIDELINES at the top of this file).
 # Default Value: {} (Optional)
 mgmt_ip_values = {
   # VCF Control Plane Core Services
@@ -489,7 +511,7 @@ mgmt_ip_values = {
 nsx_ip_address_type = "reserved_custom"
 
 # Description: Map of NSX datapath & Edge appliance names to static IP addresses in nsx_tep_subnet_cidr (for custom modes), IP ranges, positive integer count strings, or empty strings "" (for automatic modes). Forwarding rules are created for each entry. All appliances in nsx_ip_values are required if and only if NSX Edge appliance is being deployed.
-# Valid Values: Map of string appliance names to valid IPv4 address strings, IP range strings, integer count strings, or empty strings ("") within nsx_tep_subnet_cidr.
+# Valid Values: Map of string appliance names to valid IPv4 address strings, IP range strings, integer count strings, or empty strings ("") within nsx_tep_subnet_cidr. Do NOT input reserved or repeated IPs, including the subnet's DNS reserved IP (see IP ADDRESS INPUT GUIDELINES at the top of this file).
 # Default Value: {} (Optional)
 nsx_ip_values = {
   # All appliances below are required if and only if NSX Edge appliance is being deployed
