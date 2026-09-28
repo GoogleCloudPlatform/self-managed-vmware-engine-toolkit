@@ -263,6 +263,12 @@ resource "google_compute_instance" "nodes" {
     availability_domain = local.effective_availability_domains[count.index]
     on_host_maintenance = "TERMINATE"
     automatic_restart   = true
+
+    # Wait up to 7 days to recover Local SSD data in case of host errors.
+    local_ssd_recovery_timeout {
+      seconds = 604800 # 7 days
+      nanos   = 0
+    }
   }
 
   # Management NIC (nic0)
