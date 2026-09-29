@@ -90,13 +90,13 @@ variable "setup_cloud_dns" {
 variable "create_gcp_subnet" {
   type        = bool
   default     = true
-  description = "Whether to create a dedicated standard GCP subnetwork (without resolve_subnet_mask) for Cloud DNS inbound resolver IP reservation and Offline Depot PSC endpoint (true) or reference an existing subnetwork (false)."
+  description = "Whether to create a dedicated standard GCP subnetwork (without resolve_subnet_mask) for Cloud DNS inbound resolver IP reservation (true) or reference an existing subnetwork (false)."
 }
 
 variable "gcp_subnet_name" {
   type        = string
   default     = null
-  description = "Resource name of the GCP subnetwork for DNS resolution and offline depot (created if create_gcp_subnet = true, else referenced). Defaults to '<resource_name_prefix>-gcp-subnet' if null."
+  description = "Resource name of the GCP subnetwork for DNS resolution (created if create_gcp_subnet = true, else referenced). Defaults to '<resource_name_prefix>-gcp-subnet' if null."
 }
 
 variable "gcp_subnet_cidr" {

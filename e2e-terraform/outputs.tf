@@ -154,12 +154,12 @@ locals {
       length(module.hosts.node_vmotion_ips) > idx && can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", module.hosts.node_vmotion_ips[idx]))
       ? format("%03d.%03d.%03d.%03d", [for o in split(".", module.hosts.node_vmotion_ips[idx]) : parseint(o, 10)]...)
       : format("999.999.999.999-%04d", idx)
-    ) => {
+      ) => {
       hostname      = name
       sslThumbprint = "<user_should_input>"
       credentials = {
         username = "root"
-        password = "Default123!Default123!"
+        password = "<user_should_input>"
       }
     }
   }
@@ -293,7 +293,7 @@ output "management_domain_deployment_input_config" {
     workflowType    = "VCF"
 
     dnsSpec = {
-      subdomain   = local.domain
+      subdomain = local.domain
       nameservers = [
         var.setup_cloud_dns ? local.gcp_dns_reserved_ip : "<user_should_input>"
       ]
@@ -367,8 +367,8 @@ output "management_domain_deployment_input_config" {
           hostname = "nsx04.${local.domain}"
         }
       ]
-      transportVlanId         = var.nsx_tep_vlan_id
-      nsxtManagerSize         = "medium"
+      transportVlanId = var.nsx_tep_vlan_id
+      nsxtManagerSize = "medium"
       ipAddressPoolSpec = {
         name        = "mgmt-domain-cl01-tep01"
         description = "mgmt-domain-cl01-tep01 descr"
@@ -399,9 +399,9 @@ output "management_domain_deployment_input_config" {
         activeUplinks = [
           "uplink0"
         ]
-        teamingPolicy           = "loadbalance_loadbased"
-        ipAddressVersion        = "IPv4"
-        standbyUplinks          = []
+        teamingPolicy    = "loadbalance_loadbased"
+        ipAddressVersion = "IPv4"
+        standbyUplinks   = []
       },
       {
         networkType  = "VM_MANAGEMENT"
@@ -413,9 +413,9 @@ output "management_domain_deployment_input_config" {
         activeUplinks = [
           "uplink0"
         ]
-        teamingPolicy           = "loadbalance_loadbased"
-        ipAddressVersion        = "IPv4"
-        standbyUplinks          = []
+        teamingPolicy    = "loadbalance_loadbased"
+        ipAddressVersion = "IPv4"
+        standbyUplinks   = []
       },
       {
         networkType      = "VMOTION"

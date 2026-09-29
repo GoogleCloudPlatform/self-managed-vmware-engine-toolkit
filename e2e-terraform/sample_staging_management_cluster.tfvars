@@ -118,17 +118,17 @@ create_firewalls = true
 # Default Value: true (Optional)
 setup_cloud_dns = true
 
-# Description: Whether to create a dedicated standard GCP subnetwork (without resolve_subnet_mask) for Cloud DNS inbound resolver IP reservation and Offline Depot PSC endpoint (true) or reference an existing subnetwork (false).
+# Description: Whether to create a dedicated standard GCP subnetwork (without resolve_subnet_mask) for Cloud DNS inbound resolver IP reservation (true) or reference an existing subnetwork (false).
 # Valid Values: true, false
 # Default Value: true (Optional)
 create_gcp_subnet = true
 
-# Description: Resource name of the GCP subnetwork for DNS resolution and offline depot. When create_gcp_subnet = true, defaults to "<resource_name_prefix>-gcp-subnet" if null. If create_gcp_subnet = false, this must be the name of an existing subnetwork in GCP.
+# Description: Resource name of the GCP subnetwork for DNS resolution. When create_gcp_subnet = true, defaults to "<resource_name_prefix>-gcp-subnet" if null. If create_gcp_subnet = false, this must be the name of an existing subnetwork in GCP.
 # Valid Values: Valid GCP subnetwork name string, or null.
 # Default Value: null (Optional)
 gcp_subnet_name = "vcf-staging-mgmt-sample-gcp-subnet"
 
-# Description: IPv4 CIDR range for the dedicated GCP subnetwork used for Cloud DNS inbound resolution and Offline Depot PSC endpoint. Required when create_gcp_subnet = true.
+# Description: IPv4 CIDR range for the dedicated GCP subnetwork used for Cloud DNS inbound resolution. Required when create_gcp_subnet = true.
 # Valid Values: Valid IPv4 CIDR block string (e.g., "10.0.100.0/29").
 # Default Value: null (Conditional - Required when create_gcp_subnet = true)
 gcp_subnet_cidr = "10.0.100.0/29"
@@ -350,32 +350,13 @@ mgmt_nic_ip_address_type = "reserved_custom"
 mgmt_nic_ip_values = ["10.250.0.3", "10.250.0.4", "10.250.0.5", "10.250.0.6"]
 
 # ------------------------------------------------------------------------------
-# 4.2 vSAN NIC Configuration
-# ------------------------------------------------------------------------------
-
-# Description: VLAN ID tag assigned to the vSAN storage network interface.
-# Valid Values: Integer between 2 and 255 (must be unique across all NICs on the host).
-# Default Value: 3 (Optional)
-vsan_vlan_id = 100
-
-# Description: IP allocation mode for vSAN storage NIC.
-# Valid Values: "reserved_custom", "reserved_automatic", "ephemeral_custom", "ephemeral_automatic"
-# Default Value: "ephemeral_automatic" (Optional)
-vsan_ip_address_type = "reserved_custom"
-
-# Description: List of explicit IP addresses for vSAN NICs. Required when vsan_ip_address_type is "reserved_custom" or "ephemeral_custom" (must contain number_of_nodes entries). Leave empty ([]) for "reserved_automatic" or "ephemeral_automatic".
-# Valid Values: List of valid non-conflicting IPv4 address strings in vsan_subnet_cidr.
-# Default Value: [] (Conditional)
-vsan_ip_values = ["10.250.1.3", "10.250.1.4", "10.250.1.5", "10.250.1.6"]
-
-# ------------------------------------------------------------------------------
-# 4.3 vMotion NIC Configuration
+# 4.2 vMotion NIC Configuration
 # ------------------------------------------------------------------------------
 
 # Description: VLAN ID tag assigned to the vMotion live migration network interface.
 # Valid Values: Integer between 2 and 255 (must be unique across all NICs on the host).
 # Default Value: 2 (Optional)
-vmotion_vlan_id = 200
+vmotion_vlan_id = 2
 
 # Description: IP allocation mode for vMotion live migration NIC.
 # Valid Values: "reserved_custom", "reserved_automatic", "ephemeral_custom", "ephemeral_automatic"
@@ -388,13 +369,32 @@ vmotion_ip_address_type = "reserved_custom"
 vmotion_ip_values = ["10.250.2.3", "10.250.2.4", "10.250.2.5", "10.250.2.6"]
 
 # ------------------------------------------------------------------------------
+# 4.3 vSAN NIC Configuration
+# ------------------------------------------------------------------------------
+
+# Description: VLAN ID tag assigned to the vSAN storage network interface.
+# Valid Values: Integer between 2 and 255 (must be unique across all NICs on the host).
+# Default Value: 3 (Optional)
+vsan_vlan_id = 3
+
+# Description: IP allocation mode for vSAN storage NIC.
+# Valid Values: "reserved_custom", "reserved_automatic", "ephemeral_custom", "ephemeral_automatic"
+# Default Value: "ephemeral_automatic" (Optional)
+vsan_ip_address_type = "reserved_custom"
+
+# Description: List of explicit IP addresses for vSAN NICs. Required when vsan_ip_address_type is "reserved_custom" or "ephemeral_custom" (must contain number_of_nodes entries). Leave empty ([]) for "reserved_automatic" or "ephemeral_automatic".
+# Valid Values: List of valid non-conflicting IPv4 address strings in vsan_subnet_cidr.
+# Default Value: [] (Conditional)
+vsan_ip_values = ["10.250.1.3", "10.250.1.4", "10.250.1.5", "10.250.1.6"]
+
+# ------------------------------------------------------------------------------
 # 4.4 NSX TEP NIC Configuration
 # ------------------------------------------------------------------------------
 
 # Description: VLAN ID tag assigned to the NSX Geneve Overlay TEP network interface.
 # Valid Values: Integer between 2 and 255 (must be unique across all NICs on the host).
 # Default Value: 4 (Optional)
-nsx_tep_vlan_id = 250
+nsx_tep_vlan_id = 4
 
 # Description: IP allocation mode for NSX TEP NIC.
 # Valid Values: "reserved_custom", "reserved_automatic", "ephemeral_custom", "ephemeral_automatic"
@@ -417,7 +417,7 @@ nsx_tep_ip_values = ["10.250.3.3", "10.250.3.4", "10.250.3.5", "10.250.3.6"]
 #   {
 #     name            = "additional-nic-1"
 #     subnet_name     = "vcf-mgmt-sample-additional-subnet-1"
-#     vlan_id         = 210
+#     vlan_id         = 5
 #     ip_address_type = "reserved_custom"
 #     ip_values       = ["10.250.4.3", "10.250.4.4", "10.250.4.5", "10.250.4.6"]
 #   }

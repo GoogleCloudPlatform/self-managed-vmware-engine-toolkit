@@ -24,12 +24,12 @@ output "vpc_network_self_link" {
 
 output "gcp_subnet_name" {
   value       = local.effective_gcp_subnet_name
-  description = "Name of the GCP standard subnetwork for DNS resolution and offline depot"
+  description = "Name of the GCP standard subnetwork for DNS resolution"
 }
 
 output "gcp_subnet_self_link" {
   value       = local.gcp_subnet_self_link
-  description = "Self-link URI of the GCP standard subnetwork for DNS resolution and offline depot"
+  description = "Self-link URI of the GCP standard subnetwork for DNS resolution"
 }
 
 output "gcp_subnet_cidr" {
