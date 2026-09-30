@@ -125,7 +125,7 @@ variable "availability_domains" {
   default     = null
   description = "Optional list of availability domain IDs per host (values 1 to availability_count). Defaults to round-robin distribution (1 to availability_count) if not specified."
   validation {
-    condition     = var.availability_domains == null || alltrue([for ad in var.availability_domains : ad >= 1])
+    condition     = var.availability_domains == null ? true : alltrue([for ad in var.availability_domains : ad >= 1])
     error_message = "All elements in availability_domains must be greater than or equal to 1."
   }
 }

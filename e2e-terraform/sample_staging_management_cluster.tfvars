@@ -53,8 +53,7 @@
 #
 # IP ADDRESS INPUT GUIDELINES (apply to EVERY IP-related input in this file):
 # ------------------------------------------------------------------------------
-#    - Do NOT input reserved or repeated IP addresses. Every IP address specified in this file (`ntp_ip`,
-#      `mgmt_nic_ip_values`, `vsan_ip_values`, `vmotion_ip_values`, `nsx_tep_ip_values`, dynamic NIC `ip_values`,
+#    - Do NOT input reserved or repeated IP addresses. Every IP address specified in this file (`mgmt_nic_ip_values`, `vsan_ip_values`, `vmotion_ip_values`, `nsx_tep_ip_values`, dynamic NIC `ip_values`,
 #      `mgmt_ip_values` and `nsx_ip_values`, including every IP expanded from an IP range string) must be unique
 #      across all inputs and must not already be in use or reserved in the subnetwork.
 #    - GCP reserves the network address, the default gateway (e.g., "10.250.0.1" in "10.250.0.0/24"), the second-to-last
@@ -181,8 +180,8 @@ dns_ttl = 300
 # Default Value: null (Optional)
 dns_policy_name = "vcf-mgmt-sample-dns-policy"
 
-# Description: IP address for the NTP server forward DNS A record. If setup_cloud_dns is true and ntp_ip is provided, a forward DNS A record (ntp.<domain_name>) pointing to this IP is created. This field should only be specified for management clusters.
-# Valid Values: Valid IPv4 address string or null. Do NOT input reserved or repeated IPs, including the subnet's DNS reserved IP (see IP ADDRESS INPUT GUIDELINES at the top of this file).
+# Description: IP address for the NTP server forward DNS A record. If setup_cloud_dns is true and ntp_ip is provided, a forward DNS A record (ntp.<domain_name>) pointing to this IP is created. This field should only be specified for management clusters. Note that this is just a placeholder for working around a known issue. It needn't be an NTP server - it can be any valid IP (even a used one).
+# Valid Values: Valid IPv4 address string or null.
 # Default Value: null (Optional)
 ntp_ip = "10.200.0.30"
 

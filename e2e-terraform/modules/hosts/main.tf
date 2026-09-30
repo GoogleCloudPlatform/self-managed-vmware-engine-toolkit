@@ -396,20 +396,20 @@ check "validate_existing_placement_policy_name" {
 
 check "validate_node_names_count" {
   assert {
-    condition     = var.node_names == null || length(var.node_names) == 0 || length(var.node_names) == var.number_of_nodes
+    condition     = var.node_names == null ? true : (length(var.node_names) == 0 || length(var.node_names) == var.number_of_nodes)
     error_message = "Length of node_names (${length(var.node_names != null ? var.node_names : [])}) must equal number_of_nodes (${var.number_of_nodes})."
   }
 }
 
 check "validate_availability_domains" {
   assert {
-    condition = var.availability_domains == null || length(var.availability_domains) == 0 || (
+    condition = var.availability_domains == null ? true : (length(var.availability_domains) == 0 || (
       length(var.availability_domains) == var.number_of_nodes &&
       alltrue([
         for ad in var.availability_domains :
         ad >= 1 && ad <= var.availability_count
       ])
-    )
+    ))
     error_message = "When availability_domains is specified, its length (${length(var.availability_domains != null ? var.availability_domains : [])}) must match number_of_nodes (${var.number_of_nodes}), and each value must be between 1 and availability_count (${var.availability_count})."
   }
 }
@@ -464,10 +464,10 @@ check "vlan_id_uniqueness" {
 check "validate_mgmt_ips_in_subnet" {
   assert {
     condition = (
-      var.mgmt_subnet_cidr == null || var.mgmt_subnet_cidr == "" || (
+      (var.mgmt_subnet_cidr == null || var.mgmt_subnet_cidr == "") ? true : (
         alltrue([
           for ip in var.mgmt_ip_values :
-          ip == "" || !can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip)) || (
+          (ip == "" || !can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))) ? true : (
             (parseint(split(".", ip)[0], 10) * 16777216 + parseint(split(".", ip)[1], 10) * 65536 + parseint(split(".", ip)[2], 10) * 256 + parseint(split(".", ip)[3], 10)) >= local.mgmt_cidr_start_int &&
             (parseint(split(".", ip)[0], 10) * 16777216 + parseint(split(".", ip)[1], 10) * 65536 + parseint(split(".", ip)[2], 10) * 256 + parseint(split(".", ip)[3], 10)) < local.mgmt_cidr_end_int
           )
@@ -481,10 +481,10 @@ check "validate_mgmt_ips_in_subnet" {
 check "validate_vsan_ips_in_subnet" {
   assert {
     condition = (
-      var.vsan_subnet_cidr == null || var.vsan_subnet_cidr == "" || (
+      (var.vsan_subnet_cidr == null || var.vsan_subnet_cidr == "") ? true : (
         alltrue([
           for ip in var.vsan_ip_values :
-          ip == "" || !can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip)) || (
+          (ip == "" || !can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))) ? true : (
             (parseint(split(".", ip)[0], 10) * 16777216 + parseint(split(".", ip)[1], 10) * 65536 + parseint(split(".", ip)[2], 10) * 256 + parseint(split(".", ip)[3], 10)) >= local.vsan_cidr_start_int &&
             (parseint(split(".", ip)[0], 10) * 16777216 + parseint(split(".", ip)[1], 10) * 65536 + parseint(split(".", ip)[2], 10) * 256 + parseint(split(".", ip)[3], 10)) < local.vsan_cidr_end_int
           )
@@ -498,10 +498,10 @@ check "validate_vsan_ips_in_subnet" {
 check "validate_vmotion_ips_in_subnet" {
   assert {
     condition = (
-      var.vmotion_subnet_cidr == null || var.vmotion_subnet_cidr == "" || (
+      (var.vmotion_subnet_cidr == null || var.vmotion_subnet_cidr == "") ? true : (
         alltrue([
           for ip in var.vmotion_ip_values :
-          ip == "" || !can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip)) || (
+          (ip == "" || !can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))) ? true : (
             (parseint(split(".", ip)[0], 10) * 16777216 + parseint(split(".", ip)[1], 10) * 65536 + parseint(split(".", ip)[2], 10) * 256 + parseint(split(".", ip)[3], 10)) >= local.vmotion_cidr_start_int &&
             (parseint(split(".", ip)[0], 10) * 16777216 + parseint(split(".", ip)[1], 10) * 65536 + parseint(split(".", ip)[2], 10) * 256 + parseint(split(".", ip)[3], 10)) < local.vmotion_cidr_end_int
           )
@@ -515,10 +515,10 @@ check "validate_vmotion_ips_in_subnet" {
 check "validate_nsx_tep_ips_in_subnet" {
   assert {
     condition = (
-      var.nsx_tep_subnet_cidr == null || var.nsx_tep_subnet_cidr == "" || (
+      (var.nsx_tep_subnet_cidr == null || var.nsx_tep_subnet_cidr == "") ? true : (
         alltrue([
           for ip in var.nsx_tep_ip_values :
-          ip == "" || !can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip)) || (
+          (ip == "" || !can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))) ? true : (
             (parseint(split(".", ip)[0], 10) * 16777216 + parseint(split(".", ip)[1], 10) * 65536 + parseint(split(".", ip)[2], 10) * 256 + parseint(split(".", ip)[3], 10)) >= local.nsx_tep_cidr_start_int &&
             (parseint(split(".", ip)[0], 10) * 16777216 + parseint(split(".", ip)[1], 10) * 65536 + parseint(split(".", ip)[2], 10) * 256 + parseint(split(".", ip)[3], 10)) < local.nsx_tep_cidr_end_int
           )
@@ -533,10 +533,10 @@ check "validate_dynamic_nic_ips_in_subnet" {
   assert {
     condition = alltrue([
       for nic in var.additional_dynamic_nics :
-      !contains(keys(local.dynamic_subnets_cidr_ranges), nic.subnet_name) || (
+      !contains(keys(local.dynamic_subnets_cidr_ranges), nic.subnet_name) ? true : (
         alltrue([
           for ip in(nic.ip_values != null ? nic.ip_values : []) :
-          ip == "" || !can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip)) || (
+          (ip == "" || !can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))) ? true : (
             (parseint(split(".", ip)[0], 10) * 16777216 + parseint(split(".", ip)[1], 10) * 65536 + parseint(split(".", ip)[2], 10) * 256 + parseint(split(".", ip)[3], 10)) >= local.dynamic_subnets_cidr_ranges[nic.subnet_name].start_int &&
             (parseint(split(".", ip)[0], 10) * 16777216 + parseint(split(".", ip)[1], 10) * 65536 + parseint(split(".", ip)[2], 10) * 256 + parseint(split(".", ip)[3], 10)) < local.dynamic_subnets_cidr_ranges[nic.subnet_name].end_int
           )

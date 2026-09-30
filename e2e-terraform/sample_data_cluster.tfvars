@@ -52,8 +52,7 @@
 #
 # IP ADDRESS INPUT GUIDELINES (apply to EVERY IP-related input in this file):
 # ------------------------------------------------------------------------------
-#    - Do NOT input reserved or repeated IP addresses. Every IP address specified in this file (`ntp_ip`,
-#      `mgmt_nic_ip_values`, `vsan_ip_values`, `vmotion_ip_values`, `nsx_tep_ip_values`, dynamic NIC `ip_values`,
+#    - Do NOT input reserved or repeated IP addresses. Every IP address specified in this file (`mgmt_nic_ip_values`, `vsan_ip_values`, `vmotion_ip_values`, `nsx_tep_ip_values`, dynamic NIC `ip_values`,
 #      `mgmt_ip_values` and `nsx_ip_values`, including every IP expanded from an IP range string) must be unique
 #      across all inputs and must not already be in use or reserved in the subnetwork.
 #    - GCP reserves the network address, the default gateway (e.g., "10.200.11.1" in "10.200.11.0/24"), the second-to-last

@@ -344,7 +344,7 @@ check "validate_appliance_mgmt_ips_in_subnet" {
   assert {
     condition = alltrue([
       for item in local.mgmt_expanded_entities :
-      item.ip == "" || (
+      item.ip == "" ? true : (
         (parseint(split(".", item.ip)[0], 10) * 16777216 + parseint(split(".", item.ip)[1], 10) * 65536 + parseint(split(".", item.ip)[2], 10) * 256 + parseint(split(".", item.ip)[3], 10)) >= local.mgmt_cidr_start_int &&
         (parseint(split(".", item.ip)[0], 10) * 16777216 + parseint(split(".", item.ip)[1], 10) * 65536 + parseint(split(".", item.ip)[2], 10) * 256 + parseint(split(".", item.ip)[3], 10)) < local.mgmt_cidr_end_int
       )
@@ -357,7 +357,7 @@ check "validate_appliance_nsx_ips_in_subnet" {
   assert {
     condition = alltrue([
       for item in local.nsx_expanded_entities :
-      item.ip == "" || (
+      item.ip == "" ? true : (
         (parseint(split(".", item.ip)[0], 10) * 16777216 + parseint(split(".", item.ip)[1], 10) * 65536 + parseint(split(".", item.ip)[2], 10) * 256 + parseint(split(".", item.ip)[3], 10)) >= local.nsx_tep_cidr_start_int &&
         (parseint(split(".", item.ip)[0], 10) * 16777216 + parseint(split(".", item.ip)[1], 10) * 65536 + parseint(split(".", item.ip)[2], 10) * 256 + parseint(split(".", item.ip)[3], 10)) < local.nsx_tep_cidr_end_int
       )
